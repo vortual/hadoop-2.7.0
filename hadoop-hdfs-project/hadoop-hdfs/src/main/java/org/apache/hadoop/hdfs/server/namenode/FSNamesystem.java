@@ -5272,6 +5272,10 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
      * if DFS is empty or {@link #threshold} == 0
      */
     private boolean needEnter() {
+      // vortual: blockSafe 是 DN 汇报的块信息
+      // vortual: 进入安全模式的条件一： DN 汇报的块总数小于阈值。 this.blockThreshold = (int) (blockTotal * threshold); threshold 默认是 0.999
+      // vortual: 进入安全模式的条件二： 活着的 DN 小于阈值，阈值默认是0
+      // vortual: 进入安全模式的条件三： NameNode 存放元数据的磁盘空间不足
       return (threshold != 0 && blockSafe < blockThreshold) ||
         (datanodeThreshold != 0 && getNumLiveDataNodes() < datanodeThreshold) ||
         (!nameNodeHasResourcesAvailable());
@@ -5289,7 +5293,9 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       }
       // if smmthread is already running, the block threshold must have been
       // reached before, there is no need to enter the safe mode again
+      // vortual: 判断是否进入安全模式。进入安全模式集群不能写数据
       if (smmthread == null && needEnter()) {
+        // vortual: 进入安全模式
         enter();
         // check if we are ready to initialize replication queues
         if (canInitializeReplQueues() && !isPopulatingReplQueues()
@@ -5329,6 +5335,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
      */
     private synchronized void setBlockTotal(int total) {
       this.blockTotal = total;
+      // vortual: 阈值
       this.blockThreshold = (int) (blockTotal * threshold);
       this.blockReplQueueThreshold =
         (int) (blockTotal * replQueueThreshold);
@@ -5340,6 +5347,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       }
       if(blockSafe < 0)
         this.blockSafe = 0;
+      // vortual: 检查是否进入安全模式
       checkMode();
     }
 
@@ -5685,7 +5693,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     SafeModeInfo safeMode = this.safeMode;
     if (safeMode == null)
       return;
-    // vortual: getCompleteBlocksTotal 获取 Complete block 个数
+    // vortual: getCompleteBlocksTotal 获取 Complete block 个数. 安全模式只检测 Complete block
     safeMode.setBlockTotal((int)getCompleteBlocksTotal());
   }
 

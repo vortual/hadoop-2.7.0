@@ -75,15 +75,15 @@ import com.google.common.collect.Maps;
  */
 @InterfaceAudience.Private
 class BPServiceActor implements Runnable {
-  
+
   static final Log LOG = DataNode.LOG;
   final InetSocketAddress nnAddr;
   HAServiceState state;
 
   final BPOfferService bpos;
-  
+
   // lastBlockReport, lastDeletedReport and lastHeartbeat may be assigned/read
-  // by testing threads (through BPServiceActor#triggerXXX), while also 
+  // by testing threads (through BPServiceActor#triggerXXX), while also
   // assigned/read by the actor thread. Thus they should be declared as volatile
   // to make sure the "happens-before" consistency.
   volatile long lastBlockReport = 0;
@@ -121,7 +121,7 @@ class BPServiceActor implements Runnable {
   private final DNConf dnConf;
 
   private DatanodeRegistration bpRegistration;
-  final LinkedList<BPServiceActorAction> bpThreadQueue 
+  final LinkedList<BPServiceActorAction> bpThreadQueue
       = new LinkedList<BPServiceActorAction>();
 
   BPServiceActor(InetSocketAddress nnAddr, BPOfferService bpos) {
@@ -143,7 +143,7 @@ class BPServiceActor implements Runnable {
   public String toString() {
     return bpos.toString() + " service to " + nnAddr;
   }
-  
+
   InetSocketAddress getNNSocketAddress() {
     return nnAddr;
   }
@@ -166,7 +166,7 @@ class BPServiceActor implements Runnable {
    * This calls <code>versionRequest</code> to determine the NN's
    * namespace and version info. It automatically retries until
    * the NN responds or the DN is shutting down.
-   * 
+   *
    * @return the NamespaceInfo
    */
   @VisibleForTesting
@@ -182,11 +182,11 @@ class BPServiceActor implements Runnable {
       } catch(IOException e ) {  // namenode is not available
         LOG.warn("Problem connecting to server: " + nnAddr);
       }
-      
+
       // try again in a second
       sleepAndLogInterrupts(5000, "requesting version info from NN");
     }
-    
+
     if (nsInfo != null) {
       checkNNVersion(nsInfo);
     } else {
@@ -216,18 +216,20 @@ class BPServiceActor implements Runnable {
 
   private void connectToNNAndHandshake() throws IOException {
     // get NN proxy
+    // vortual: 获取 NN 代理
     bpNamenode = dn.connectToNN(nnAddr);
 
     // First phase of the handshake with NN - get the namespace
     // info.
     NamespaceInfo nsInfo = retrieveNamespaceInfo();
-    
+
     // Verify that this matches the other NN in this HA pair.
     // This also initializes our block pool in the DN if we are
     // the first NN connection for this BP.
     bpos.verifyAndSetNamespaceInfo(nsInfo);
-    
+
     // Second phase of the handshake with the NN.
+    // vortual: 注册
     register(nsInfo);
   }
 
@@ -244,7 +246,7 @@ class BPServiceActor implements Runnable {
   }
 
   /**
-   * This methods  arranges for the data node to send the block report at 
+   * This methods  arranges for the data node to send the block report at
    * the next heartbeat.
    */
   void scheduleBlockReport(long delay) {
@@ -257,7 +259,7 @@ class BPServiceActor implements Runnable {
     resetBlockReportTime = true; // reset future BRs for randomness
   }
 
-  
+
   /**
    * Report received blocks and delete hints to the Namenode for each
    * storage.
@@ -398,7 +400,7 @@ class BPServiceActor implements Runnable {
       }
     }
   }
-  
+
   @VisibleForTesting
   void triggerHeartbeatForTests() {
     synchronized (pendingIncrementalBRperStorage) {
@@ -588,7 +590,7 @@ class BPServiceActor implements Runnable {
     }
     return cmd;
   }
-  
+
   HeartbeatResponse sendHeartBeat() throws IOException {
     StorageReport[] reports =
         dn.getFSDataset().getStorageReports(bpos.getBlockPoolId());
@@ -596,7 +598,7 @@ class BPServiceActor implements Runnable {
       LOG.debug("Sending heartbeat with " + reports.length +
                 " storage reports from service actor: " + this);
     }
-    
+
     VolumeFailureSummary volumeFailureSummary = dn.getFSDataset()
         .getVolumeFailureSummary();
     int numFailedVolumes = volumeFailureSummary != null ?
@@ -610,7 +612,7 @@ class BPServiceActor implements Runnable {
         numFailedVolumes,
         volumeFailureSummary);
   }
-  
+
   //This must be called only by BPOfferService
   void start() {
     if ((bpThread != null) && (bpThread.isAlive())) {
@@ -621,14 +623,14 @@ class BPServiceActor implements Runnable {
     bpThread.setDaemon(true); // needed for JUnit testing
     bpThread.start();
   }
-  
+
   private String formatThreadName() {
     Collection<StorageLocation> dataDirs =
         DataNode.getStorageLocations(dn.getConf());
     return "DataNode: [" + dataDirs.toString() + "] " +
       " heartbeating to " + nnAddr;
   }
-  
+
   //This must be called only by blockPoolManager.
   void stop() {
     shouldServiceRun = false;
@@ -636,7 +638,7 @@ class BPServiceActor implements Runnable {
         bpThread.interrupt();
     }
   }
-  
+
   //This must be called only by blockPoolManager
   void join() {
     try {
@@ -645,10 +647,10 @@ class BPServiceActor implements Runnable {
       }
     } catch (InterruptedException ie) { }
   }
-  
+
   //Cleanup method to be called by current thread before exiting.
   private synchronized void cleanUp() {
-    
+
     shouldServiceRun = false;
     IOUtils.cleanup(LOG, bpNamenode);
     bpos.shutdownActor(this);
@@ -742,10 +744,10 @@ class BPServiceActor implements Runnable {
         processCommand(new DatanodeCommand[]{ cmd });
 
         //
-        // There is no work to do;  sleep until hearbeat timer elapses, 
+        // There is no work to do;  sleep until hearbeat timer elapses,
         // or work arrives, and then iterate again.
         //
-        long waitTime = dnConf.heartBeatInterval - 
+        long waitTime = dnConf.heartBeatInterval -
         (monotonicNow() - lastHeartbeat);
         synchronized(pendingIncrementalBRperStorage) {
           if (waitTime > 0 && !sendImmediateIBR) {
@@ -783,11 +785,11 @@ class BPServiceActor implements Runnable {
    * Register one bp with the corresponding NameNode
    * <p>
    * The bpDatanode needs to register with the namenode on startup in order
-   * 1) to report which storage it is serving now and 
+   * 1) to report which storage it is serving now and
    * 2) to receive a registrationID
-   *  
+   *
    * issued by the namenode to recognize registered datanodes.
-   * 
+   *
    * @param nsInfo current NamespaceInfo
    * @see FSNamesystem#registerDatanode(DatanodeRegistration)
    * @throws IOException
@@ -795,6 +797,7 @@ class BPServiceActor implements Runnable {
   void register(NamespaceInfo nsInfo) throws IOException {
     // The handshake() phase loaded the block pool storage
     // off disk - so update the bpRegistration object from that info
+    // vortual: 封装注册信息
     bpRegistration = bpos.createRegistration();
 
     LOG.info(this + " beginning handshake with NN");
@@ -802,6 +805,7 @@ class BPServiceActor implements Runnable {
     while (shouldRun()) {
       try {
         // Use returned registration from namenode with updated fields
+        // vortual: 实际调用的方法： org.apache.hadoop.hdfs.server.namenode.NameNodeRpcServer.registerDatanode
         bpRegistration = bpNamenode.registerDatanode(bpRegistration);
         bpRegistration.setNamespaceInfo(nsInfo);
         break;
@@ -814,7 +818,7 @@ class BPServiceActor implements Runnable {
         sleepAndLogInterrupts(1000, "connecting to server");
       }
     }
-    
+
     LOG.info("Block pool " + this + " successfully registered with NN");
     bpos.registrationSucceeded(this, bpRegistration);
 
@@ -849,6 +853,7 @@ class BPServiceActor implements Runnable {
         // init stuff
         try {
           // setup storage
+          // vortual: 注册
           connectToNNAndHandshake();
           break;
         } catch (IOException ioe) {
@@ -871,6 +876,7 @@ class BPServiceActor implements Runnable {
 
       while (shouldRun()) {
         try {
+          // vortual: 发送心跳
           offerService();
         } catch (Exception ex) {
           LOG.error("Exception in BPOfferService for " + this, ex);
@@ -897,9 +903,9 @@ class BPServiceActor implements Runnable {
 
   /**
    * Process an array of datanode commands
-   * 
+   *
    * @param cmds an array of datanode commands
-   * @return true if further processing may be required or false otherwise. 
+   * @return true if further processing may be required or false otherwise.
    */
   boolean processCommand(DatanodeCommand[] cmds) {
     if (cmds != null) {
@@ -922,7 +928,7 @@ class BPServiceActor implements Runnable {
    */
   void reportRemoteBadBlock(DatanodeInfo dnInfo, ExtendedBlock block)
       throws IOException {
-    LocatedBlock lb = new LocatedBlock(block, 
+    LocatedBlock lb = new LocatedBlock(block,
                                     new DatanodeInfo[] {dnInfo});
     bpNamenode.reportBadBlocks(new LocatedBlock[] {lb});
   }
@@ -1017,7 +1023,7 @@ class BPServiceActor implements Runnable {
       }
     }
   }
-  
+
   public void bpThreadEnqueue(BPServiceActorAction action) {
     synchronized (bpThreadQueue) {
       if (!bpThreadQueue.contains(action)) {

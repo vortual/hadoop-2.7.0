@@ -47,7 +47,7 @@ import com.google.common.collect.Sets;
 @InterfaceAudience.Private
 class BlockPoolManager {
   private static final Log LOG = DataNode.LOG;
-  
+
   private final Map<String, BPOfferService> bpByNameserviceId =
     Maps.newHashMap();
   private final Map<String, BPOfferService> bpByBlockPoolId =
@@ -59,11 +59,11 @@ class BlockPoolManager {
 
   //This lock is used only to ensure exclusion of refreshNamenodes
   private final Object refreshNamenodesLock = new Object();
-  
+
   BlockPoolManager(DataNode dn) {
     this.dn = dn;
   }
-  
+
   synchronized void addBlockPool(BPOfferService bpos) {
     Preconditions.checkArgument(offerServices.contains(bpos),
         "Unknown BPOS: %s", bpos);
@@ -72,20 +72,20 @@ class BlockPoolManager {
     }
     bpByBlockPoolId.put(bpos.getBlockPoolId(), bpos);
   }
-  
+
   /**
-   * Returns the array of BPOfferService objects. 
+   * Returns the array of BPOfferService objects.
    * Caution: The BPOfferService returned could be shutdown any time.
    */
   synchronized BPOfferService[] getAllNamenodeThreads() {
     BPOfferService[] bposArray = new BPOfferService[offerServices.size()];
     return offerServices.toArray(bposArray);
   }
-      
+
   synchronized BPOfferService get(String bpid) {
     return bpByBlockPoolId.get(bpid);
   }
-  
+
   synchronized void remove(BPOfferService t) {
     offerServices.remove(t);
     if (t.hasBlockPoolId()) {
@@ -93,7 +93,7 @@ class BlockPoolManager {
       // with any NN, so it was never added it to this map
       bpByBlockPoolId.remove(t.getBlockPoolId());
     }
-    
+
     boolean removed = false;
     for (Iterator<BPOfferService> it = bpByNameserviceId.values().iterator();
          it.hasNext() && !removed;) {
@@ -104,12 +104,12 @@ class BlockPoolManager {
         removed = true;
       }
     }
-    
+
     if (!removed) {
       LOG.warn("Couldn't remove BPOS " + t + " from bpByNameserviceId map");
     }
   }
-  
+
   void shutDownAll(BPOfferService[] bposArray) throws InterruptedException {
     if (bposArray != null) {
       for (BPOfferService bpos : bposArray) {
@@ -121,7 +121,7 @@ class BlockPoolManager {
       }
     }
   }
-  
+
   synchronized void startAll() throws IOException {
     try {
       UserGroupInformation.getLoginUser().doAs(
@@ -140,13 +140,13 @@ class BlockPoolManager {
       throw ioe;
     }
   }
-  
+
   void joinAll() {
     for (BPOfferService bpos: this.getAllNamenodeThreads()) {
       bpos.join();
     }
   }
-  
+
   void refreshNamenodes(Configuration conf)
       throws IOException {
     LOG.info("Refresh request received for nameservices: " + conf.get
@@ -156,10 +156,11 @@ class BlockPoolManager {
             .getNNServiceRpcAddressesForCluster(conf);
 
     synchronized (refreshNamenodesLock) {
+      // vortual: 核心代码
       doRefreshNamenodes(newAddressMap);
     }
   }
-  
+
   private void doRefreshNamenodes(
       Map<String, Map<String, InetSocketAddress>> addrMap) throws IOException {
     assert Thread.holdsLock(refreshNamenodesLock);
@@ -167,11 +168,20 @@ class BlockPoolManager {
     Set<String> toRefresh = Sets.newLinkedHashSet();
     Set<String> toAdd = Sets.newLinkedHashSet();
     Set<String> toRemove;
-    
+
     synchronized (this) {
       // Step 1. For each of the new nameservices, figure out whether
       // it's an update of the set of NNs for an existing NS,
       // or an entirely new nameservice.
+
+      /**
+       * vortual: 通常情况： hdfs是HA架构。一个命名空间下面有两个NN。 nameservice(hadoop1 hadoop2)
+       *
+       * 如果是联邦。就会有多个 nameservice
+       *
+       * hadoop1,hadoop2 -> 联邦1 service1
+       * hadoop3,hadoop4 -> 联邦2 service2
+       */
       for (String nameserviceId : addrMap.keySet()) {
         if (bpByNameserviceId.containsKey(nameserviceId)) {
           toRefresh.add(nameserviceId);
@@ -179,24 +189,24 @@ class BlockPoolManager {
           toAdd.add(nameserviceId);
         }
       }
-      
+
       // Step 2. Any nameservices we currently have but are no longer present
       // need to be removed.
       toRemove = Sets.newHashSet(Sets.difference(
           bpByNameserviceId.keySet(), addrMap.keySet()));
-      
+
       assert toRefresh.size() + toAdd.size() ==
         addrMap.size() :
           "toAdd: " + Joiner.on(",").useForNull("<default>").join(toAdd) +
           "  toRemove: " + Joiner.on(",").useForNull("<default>").join(toRemove) +
           "  toRefresh: " + Joiner.on(",").useForNull("<default>").join(toRefresh);
 
-      
+
       // Step 3. Start new nameservices
       if (!toAdd.isEmpty()) {
         LOG.info("Starting BPOfferServices for nameservices: " +
             Joiner.on(",").useForNull("<default>").join(toAdd));
-      
+
         for (String nsToAdd : toAdd) {
           ArrayList<InetSocketAddress> addrs =
             Lists.newArrayList(addrMap.get(nsToAdd).values());
@@ -205,6 +215,7 @@ class BlockPoolManager {
           offerServices.add(bpos);
         }
       }
+      // vortual: 核心代码
       startAll();
     }
 
@@ -214,7 +225,7 @@ class BlockPoolManager {
     if (!toRemove.isEmpty()) {
       LOG.info("Stopping BPOfferServices for nameservices: " +
           Joiner.on(",").useForNull("<default>").join(toRemove));
-      
+
       for (String nsToRemove : toRemove) {
         BPOfferService bpos = bpByNameserviceId.get(nsToRemove);
         bpos.stop();
@@ -222,12 +233,12 @@ class BlockPoolManager {
         // they will call remove on their own
       }
     }
-    
+
     // Step 5. Update nameservices whose NN list has changed
     if (!toRefresh.isEmpty()) {
       LOG.info("Refreshing list of NNs for nameservices: " +
           Joiner.on(",").useForNull("<default>").join(toRefresh));
-      
+
       for (String nsToRefresh : toRefresh) {
         BPOfferService bpos = bpByNameserviceId.get(nsToRefresh);
         ArrayList<InetSocketAddress> addrs =

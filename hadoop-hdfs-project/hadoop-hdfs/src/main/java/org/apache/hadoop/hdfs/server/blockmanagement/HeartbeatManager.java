@@ -57,7 +57,7 @@ class HeartbeatManager implements DatanodeStatistics {
   /** Heartbeat monitor thread */
   private final Daemon heartbeatThread = new Daemon(new Monitor());
 
-    
+
   final Namesystem namesystem;
   final BlockManager blockManager;
 
@@ -98,7 +98,7 @@ class HeartbeatManager implements DatanodeStatistics {
     } catch (InterruptedException e) {
     }
   }
-  
+
   synchronized int getLiveDatanodeCount() {
     return datanodes.size();
   }
@@ -150,17 +150,17 @@ class HeartbeatManager implements DatanodeStatistics {
   public synchronized int getXceiverCount() {
     return stats.xceiverCount;
   }
-  
+
   @Override
   public synchronized int getInServiceXceiverCount() {
     return stats.nodesInServiceXceiverCount;
   }
-  
+
   @Override
   public synchronized int getNumDatanodesInService() {
     return stats.nodesInService;
   }
-  
+
   @Override
   public synchronized long getCacheCapacity() {
     return stats.cacheCapacity;
@@ -170,7 +170,7 @@ class HeartbeatManager implements DatanodeStatistics {
   public synchronized long getCacheUsed() {
     return stats.cacheUsed;
   }
-  
+
 
   @Override
   public synchronized long[] getStats() {
@@ -237,7 +237,7 @@ class HeartbeatManager implements DatanodeStatistics {
     node.stopDecommission();
     stats.add(node);
   }
-  
+
   /**
    * Check if there are any expired heartbeats, and if so,
    * whether any blocks have to be re-replicated.
@@ -284,6 +284,7 @@ class HeartbeatManager implements DatanodeStatistics {
       int numOfStaleStorages = 0;
       synchronized(this) {
         for (DatanodeDescriptor d : datanodes) {
+          // vortual: 心跳超时了
           if (dead == null && dm.isDatanodeDead(d)) {
             stats.incrExpiredHeartbeats();
             dead = d;
@@ -305,7 +306,7 @@ class HeartbeatManager implements DatanodeStatistics {
           }
 
         }
-        
+
         // Set the number of stale nodes in the DatanodeManager
         dm.setNumStaleNodes(numOfStaleNodes);
         dm.setNumStaleStorages(numOfStaleStorages);
@@ -425,7 +426,7 @@ class HeartbeatManager implements DatanodeStatistics {
       cacheCapacity -= node.getCacheCapacity();
       cacheUsed -= node.getCacheUsed();
     }
-    
+
     /** Increment expired heartbeat counter. */
     private void incrExpiredHeartbeats() {
       expiredHeartbeats++;

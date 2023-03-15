@@ -975,10 +975,12 @@ public class DatanodeManager {
         nodeDescr.setSoftwareVersion(nodeReg.getSoftwareVersion());
 
         // register new datanode
+        // vortual: 注册 DN，放入到内存数据结构
         addDatanode(nodeDescr);
         // also treat the registration message as a heartbeat
         // no need to update its timestamp
         // because its is done when the descriptor is created
+        // vortual: 加入心跳管理
         heartbeatManager.addDatanode(nodeDescr);
         incrementVersionCount(nodeReg.getSoftwareVersion());
         startDecommissioningIfExcluded(nodeDescr);
