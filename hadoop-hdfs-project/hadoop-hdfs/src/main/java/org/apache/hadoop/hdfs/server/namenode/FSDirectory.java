@@ -121,12 +121,12 @@ public class FSDirectory implements Closeable {
   public final static String DOT_RESERVED_STRING = ".reserved";
   public final static String DOT_RESERVED_PATH_PREFIX = Path.SEPARATOR
       + DOT_RESERVED_STRING;
-  public final static byte[] DOT_RESERVED = 
+  public final static byte[] DOT_RESERVED =
       DFSUtil.string2Bytes(DOT_RESERVED_STRING);
   private final static String RAW_STRING = "raw";
   private final static byte[] RAW = DFSUtil.string2Bytes(RAW_STRING);
   public final static String DOT_INODES_STRING = ".inodes";
-  public final static byte[] DOT_INODES = 
+  public final static byte[] DOT_INODES =
       DFSUtil.string2Bytes(DOT_INODES_STRING);
 
   INodeDirectory rootDir;
@@ -210,7 +210,7 @@ public class FSDirectory implements Closeable {
   public final EncryptionZoneManager ezManager;
 
   /**
-   * Caches frequently used file names used in {@link INode} to reuse 
+   * Caches frequently used file names used in {@link INode} to reuse
    * byte[] objects and reduce heap usage.
    */
   private final NameCache<ByteArray> nameCache;
@@ -264,7 +264,7 @@ public class FSDirectory implements Closeable {
     this.contentCountLimit = conf.getInt(
         DFSConfigKeys.DFS_CONTENT_SUMMARY_LIMIT_KEY,
         DFSConfigKeys.DFS_CONTENT_SUMMARY_LIMIT_DEFAULT);
-    
+
     // filesystem limits
     this.maxComponentLength = conf.getInt(
         DFSConfigKeys.DFS_NAMENODE_MAX_COMPONENT_LENGTH_KEY,
@@ -298,7 +298,7 @@ public class FSDirectory implements Closeable {
     this.editLog = ns.getEditLog();
     ezManager = new EncryptionZoneManager(this, conf);
   }
-    
+
   FSNamesystem getFSNamesystem() {
     return namesystem;
   }
@@ -519,7 +519,7 @@ public class FSDirectory implements Closeable {
       writeUnlock();
     }
   }
-  
+
   boolean unprotectedRemoveBlock(String path, INodesInPath iip,
       INodeFile fileNode, Block block) throws IOException {
     // modify file-> block and blocksMap
@@ -677,7 +677,7 @@ public class FSDirectory implements Closeable {
   }
 
   /** update count of each inode with quota
-   * 
+   *
    * @param iip inodes in a path
    * @param numOfINodes the number of inodes to update starting from index 0
    * @param counts the count of space/namespace/type usage to be update
@@ -700,11 +700,11 @@ public class FSDirectory implements Closeable {
     }
     unprotectedUpdateCount(iip, numOfINodes, counts);
   }
-  
-  /** 
-   * update quota of each inode and check to see if quota is exceeded. 
+
+  /**
+   * update quota of each inode and check to see if quota is exceeded.
    * See {@link #updateCount(INodesInPath, int, QuotaCounts, boolean)}
-   */ 
+   */
    void updateCountNoQuotaCheck(INodesInPath inodesInPath,
       int numOfINodes, QuotaCounts counts) {
     assert hasWriteLock();
@@ -714,7 +714,7 @@ public class FSDirectory implements Closeable {
       NameNode.LOG.error("BUG: unexpected exception ", e);
     }
   }
-  
+
   /**
    * updates quota without verification
    * callers responsibility is to make sure quota is not exceeded
@@ -771,7 +771,7 @@ public class FSDirectory implements Closeable {
     } else {
       fullPathName.append(inodes[0].getLocalName());
     }
-    
+
     for (int i=1; i<=pos; i++) {
       fullPathName.append(Path.SEPARATOR_CHAR).append(inodes[i].getLocalName());
     }
@@ -802,11 +802,11 @@ public class FSDirectory implements Closeable {
     }
     return inodes;
   }
-  
+
   private static INode[] getFullPathINodes(INode inode) {
     return getRelativePathINodes(inode, null);
   }
-  
+
   /** Return the full path name of the specified inode */
   static String getFullPathName(INode inode) {
     INode[] inodes = getFullPathINodes(inode);
@@ -834,9 +834,9 @@ public class FSDirectory implements Closeable {
   }
 
   /**
-   * Verify quota for adding or moving a new INode with required 
+   * Verify quota for adding or moving a new INode with required
    * namespace and storagespace to a given position.
-   *  
+   *
    * @param iip INodes corresponding to a path
    * @param pos position where a new INode will be added
    * @param deltas needed namespace, storagespace and storage types
@@ -977,6 +977,7 @@ public class FSDirectory implements Closeable {
     boolean isRename = (inode.getParent() != null);
     boolean added;
     try {
+      // vortual: 父目录添加子目录
       added = parent.addChild(inode, true, existing.getLatestSnapshotId());
     } catch (QuotaExceededException e) {
       updateCountNoQuotaCheck(existing, pos, counts.negation());
@@ -1008,7 +1009,7 @@ public class FSDirectory implements Closeable {
    * Note: the caller needs to update the ancestors' quota count.
    *
    * @return -1 for failing to remove;
-   *          0 for removing a reference whose referred inode has other 
+   *          0 for removing a reference whose referred inode has other
    *            reference nodes;
    *          1 otherwise.
    */
@@ -1178,7 +1179,7 @@ public class FSDirectory implements Closeable {
       }
     }
   }
-  
+
   /**
    * This method is always called with writeLock of FSDirectory held.
    */
@@ -1192,7 +1193,7 @@ public class FSDirectory implements Closeable {
       }
     }
   }
-  
+
   /**
    * Get the inode from inodeMap based on its inode id.
    * @param id The given id
@@ -1206,7 +1207,7 @@ public class FSDirectory implements Closeable {
       readUnlock();
     }
   }
-  
+
   @VisibleForTesting
   int getInodeMapSize() {
     return inodeMap.size();
@@ -1394,12 +1395,12 @@ public class FSDirectory implements Closeable {
       inode.setLocalName(name.getBytes());
     }
   }
-  
+
   void shutdown() {
     nameCache.reset();
     inodeMap.clear();
   }
-  
+
   /**
    * Given an INode get all the path complents leading to it from the root.
    * If an Inode corresponding to C is given in /A/B/C, the returned
@@ -1457,7 +1458,7 @@ public class FSDirectory implements Closeable {
    * if /a/b/c refers to a file that is not in an encryption zone, then
    * /.reserved/raw/a/b/c is equivalent (they both refer to the same
    * unencrypted file).
-   * 
+   *
    * @param src path that is being processed
    * @param pathComponents path components corresponding to the path
    * @param fsd FSDirectory
@@ -1517,7 +1518,7 @@ public class FSDirectory implements Closeable {
       throw new FileNotFoundException(
           "File for given inode path does not exist: " + src);
     }
-    
+
     // Handle single ".." for NFS lookup support.
     if ((pathComponents.length > 4)
         && DFSUtil.bytes2String(pathComponents[4]).equals("..")) {

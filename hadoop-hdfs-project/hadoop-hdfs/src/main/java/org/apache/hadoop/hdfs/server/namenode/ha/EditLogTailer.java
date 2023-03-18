@@ -56,13 +56,14 @@ import com.google.common.base.Preconditions;
  * journals and applies the transactions contained within to a given
  * FSNamesystem.
  */
+// vortual: 周期性的去 edits journals 读取元数据日志，并回放这些日志到自己的元数据里(内存 + 磁盘)
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class EditLogTailer {
   public static final Log LOG = LogFactory.getLog(EditLogTailer.class);
-  
+
   private final EditLogTailerThread tailerThread;
-  
+
   private final Configuration conf;
   private final FSNamesystem namesystem;
   private FSEditLog editLog;
@@ -74,7 +75,7 @@ public class EditLogTailer {
    * The last transaction ID at which an edit log roll was initiated.
    */
   private long lastRollTriggerTxId = HdfsConstants.INVALID_TXID;
-  
+
   /**
    * The highest transaction ID loaded by the Standby.
    */
@@ -98,13 +99,13 @@ public class EditLogTailer {
    * available to be read from.
    */
   private final long sleepTimeMs;
-  
+
   public EditLogTailer(FSNamesystem namesystem, Configuration conf) {
     this.tailerThread = new EditLogTailerThread();
     this.conf = conf;
     this.namesystem = namesystem;
     this.editLog = namesystem.getEditLog();
-    
+
     lastLoadTimeMs = monotonicNow();
 
     logRollPeriodMs = conf.getInt(DFSConfigKeys.DFS_HA_LOGROLL_PERIOD_KEY,
@@ -120,19 +121,19 @@ public class EditLogTailer {
       LOG.info("Not going to trigger log rolls on active node because " +
           DFSConfigKeys.DFS_HA_LOGROLL_PERIOD_KEY + " is negative.");
     }
-    
+
     sleepTimeMs = conf.getInt(DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_KEY,
         DFSConfigKeys.DFS_HA_TAILEDITS_PERIOD_DEFAULT) * 1000;
-    
+
     LOG.debug("logRollPeriodMs=" + logRollPeriodMs +
         " sleepTime=" + sleepTimeMs);
   }
-  
+
   private InetSocketAddress getActiveNodeAddress() {
     Configuration activeConf = HAUtil.getConfForOtherNode(conf);
     return NameNode.getServiceAddress(activeConf, true);
   }
-  
+
   private NamenodeProtocol getActiveNodeProxy() throws IOException {
     if (cachedActiveProxy == null) {
       int rpcTimeout = conf.getInt(
@@ -150,7 +151,7 @@ public class EditLogTailer {
   public void start() {
     tailerThread.start();
   }
-  
+
   public void stop() throws IOException {
     tailerThread.setShouldRun(false);
     tailerThread.interrupt();
@@ -161,17 +162,17 @@ public class EditLogTailer {
       throw new IOException(e);
     }
   }
-  
+
   @VisibleForTesting
   FSEditLog getEditLog() {
     return editLog;
   }
-  
+
   @VisibleForTesting
   public void setEditLog(FSEditLog editLog) {
     this.editLog = editLog;
   }
-  
+
   public void catchupDuringFailover() throws IOException {
     Preconditions.checkState(tailerThread == null ||
         !tailerThread.isAlive(),
@@ -193,24 +194,27 @@ public class EditLogTailer {
       }
     });
   }
-  
+
   @VisibleForTesting
   void doTailEdits() throws IOException, InterruptedException {
-    // Write lock needs to be interruptible here because the 
+    // Write lock needs to be interruptible here because the
     // transitionToActive RPC takes the write lock before calling
     // tailer.stop() -- so if we're not interruptible, it will
     // deadlock.
     namesystem.writeLockInterruptibly();
     try {
+      // vortual: 加载自己的元数据
       FSImage image = namesystem.getFSImage();
 
+      // vortual: 获取当前元数据日志最后一条的日志 ID
       long lastTxnId = image.getLastAppliedTxId();
-      
+
       if (LOG.isDebugEnabled()) {
         LOG.debug("lastTxnId: " + lastTxnId);
       }
       Collection<EditLogInputStream> streams;
       try {
+        // vortual: 上面获取到了最后一条的 lastTxnId。那么从 journals 拉取日志只要这个往后的拉取就行，所以是 lastTxnId + 1
         streams = editLog.selectInputStreams(lastTxnId + 1, 0, null, false);
       } catch (IOException ioe) {
         // This is acceptable. If we try to tail edits in the middle of an edits
@@ -223,12 +227,13 @@ public class EditLogTailer {
       if (LOG.isDebugEnabled()) {
         LOG.debug("edit streams to load from: " + streams.size());
       }
-      
+
       // Once we have streams to load, errors encountered are legitimate cause
       // for concern, so we don't catch them here. Simple errors reading from
       // disk are ignored.
       long editsLoaded = 0;
       try {
+        // vortual: 去 journal 拉取日志
         editsLoaded = image.loadEdits(streams, namesystem);
       } catch (EditLogInputException elie) {
         editsLoaded = elie.getNumEditsLoaded();
@@ -260,7 +265,7 @@ public class EditLogTailer {
    * @return true if the configured log roll period has elapsed.
    */
   private boolean tooLongSinceLastLoad() {
-    return logRollPeriodMs >= 0 && 
+    return logRollPeriodMs >= 0 &&
       (monotonicNow() - lastLoadTimeMs) > logRollPeriodMs ;
   }
 
@@ -283,33 +288,34 @@ public class EditLogTailer {
    */
   private class EditLogTailerThread extends Thread {
     private volatile boolean shouldRun = true;
-    
+
     private EditLogTailerThread() {
       super("Edit log tailer");
     }
-    
+
     private void setShouldRun(boolean shouldRun) {
       this.shouldRun = shouldRun;
     }
-    
+
     @Override
     public void run() {
       SecurityUtil.doAsLoginUserOrFatal(
           new PrivilegedAction<Object>() {
           @Override
           public Object run() {
+            // vortual: 核心代码
             doWork();
             return null;
           }
         });
     }
-    
+
     private void doWork() {
       while (shouldRun) {
         try {
           // There's no point in triggering a log roll if the Standby hasn't
           // read any more transactions since the last time a roll was
-          // triggered. 
+          // triggered.
           if (tooLongSinceLastLoad() &&
               lastRollTriggerTxId < lastLoadedTxnId) {
             triggerActiveLogRoll();
@@ -328,6 +334,7 @@ public class EditLogTailer {
           // state updates.
           namesystem.cpLockInterruptibly();
           try {
+            // vortual: 核心代码
             doTailEdits();
           } finally {
             namesystem.cpUnlock();

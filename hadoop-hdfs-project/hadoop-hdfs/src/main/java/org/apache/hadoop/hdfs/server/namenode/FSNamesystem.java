@@ -1747,6 +1747,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
 
     LocatedBlocks blocks = res.blocks;
     if (blocks != null) {
+      // vortual: block 的位置信息按照与客户端的距离远近排好序
       blockManager.getDatanodeManager().sortLocatedBlocks(
           clientMachine, blocks.getLocatedBlocks());
 
@@ -2432,6 +2433,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       try {
         src = dir.resolvePath(pc, src, pathComponents);
         final INodesInPath iip = dir.getINodesInPath4Write(src);
+        // vortual: 核心代码
         toRemoveBlocks = startFileInternal(
             pc, iip, permissions, holder,
             clientMachine, create, overwrite,
@@ -2483,6 +2485,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     // Verify that the destination does not exist as a directory already.
     final INode inode = iip.getLastINode();
     final String src = iip.getPath();
+    // vortual: 检查文件是否已经存在
     if (inode != null && inode.isDirectory()) {
       throw new FileAlreadyExistsException(src +
           " already exists as a directory");
@@ -2497,6 +2500,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
        * To overwrite existing file, need to check 'w' permission
        * of parent (equals to ancestor in this case)
        */
+      // vortual: 检查是否有权限
       dir.checkAncestorAccess(pc, iip, FsAction.WRITE);
     }
     if (!createParent) {
@@ -2565,6 +2569,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       if (newNode == null) {
         throw new IOException("Unable to add " + src +  " to namespace");
       }
+      // vortual: 添加契约
       leaseManager.addLease(newNode.getFileUnderConstructionFeature()
           .getClientName(), src);
 
@@ -2889,6 +2894,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
           " from client " + clientName);
         internalReleaseLease(lease, src, iip, holder);
       } else {
+        // vortual: 判断是否当前用户持有的契约
         assert lease.getHolder().equals(clientName) :
           "Current lease holder " + lease.getHolder() +
           " does not match file creator " + clientName;
@@ -3302,6 +3308,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
         inode = dir.getInode(fileId);
         if (inode != null) src = inode.getFullPathName();
       }
+      // vortual: 契约检查
       final INodeFile file = checkLease(src, clientName, inode, fileId);
       clientMachine = file.getFileUnderConstructionFeature().getClientMachine();
       clientnode = blockManager.getDatanodeManager().getDatanodeByHost(clientMachine);
@@ -3858,7 +3865,9 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
     writeLock();
     try {
       checkOperation(OperationCategory.WRITE);
+      // vortual: 如果是安全模式，创建不了目录
       checkNameNodeSafeMode("Cannot create directory " + src);
+      // vortual: 创建目录
       auditStat = FSDirMkdirOp.mkdirs(this, src, permissions, createParent);
     } catch (AccessControlException e) {
       logAuditEvent(false, "mkdirs", src);

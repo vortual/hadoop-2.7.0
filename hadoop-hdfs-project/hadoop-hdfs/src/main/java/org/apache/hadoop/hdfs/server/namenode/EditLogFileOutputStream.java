@@ -63,7 +63,7 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
 
   /**
    * Creates output buffers and file object.
-   * 
+   *
    * @param conf
    *          Configuration object
    * @param name
@@ -94,6 +94,7 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
 
   @Override
   public void write(FSEditLogOp op) throws IOException {
+    // vortual: 双缓冲
     doubleBuf.writeOp(op);
   }
 
@@ -125,7 +126,7 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
   /**
    * Write header information for this EditLogFileOutputStream to the provided
    * DataOutputSream.
-   * 
+   *
    * @param layoutVersion the LayoutVersion of the EditLog
    * @param out the output stream to write the header to.
    * @throws IOException in the event of error writing to the stream.
@@ -151,7 +152,7 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
         doubleBuf.close();
         doubleBuf = null;
       }
-      
+
       // remove any preallocated padding bytes from the transaction log.
       if (fc != null && fc.isOpen()) {
         fc.truncate(fc.position());
@@ -168,7 +169,7 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
     }
     fp = null;
   }
-  
+
   @Override
   public void abort() throws IOException {
     if (fp == null) {
@@ -245,7 +246,7 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
   File getFile() {
     return file;
   }
-  
+
   @Override
   public String toString() {
     return "EditLogFileOutputStream(" + file + ")";
@@ -257,17 +258,17 @@ public class EditLogFileOutputStream extends EditLogOutputStream {
   public boolean isOpen() {
     return fp != null;
   }
-  
+
   @VisibleForTesting
   public void setFileChannelForTesting(FileChannel fc) {
     this.fc = fc;
   }
-  
+
   @VisibleForTesting
   public FileChannel getFileChannelForTesting() {
     return fc;
   }
-  
+
   /**
    * For the purposes of unit tests, we don't need to actually
    * write durably to disk. So, we can skip the fsync() calls

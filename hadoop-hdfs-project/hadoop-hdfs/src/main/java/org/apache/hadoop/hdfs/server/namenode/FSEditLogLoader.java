@@ -115,12 +115,12 @@ public class FSEditLogLoader {
   private long lastAppliedTxId;
   /** Total number of end transactions loaded. */
   private int totalEdits = 0;
-  
+
   public FSEditLogLoader(FSNamesystem fsNamesys, long lastAppliedTxId) {
     this.fsNamesys = fsNamesys;
     this.lastAppliedTxId = lastAppliedTxId;
   }
-  
+
   long loadFSEdits(EditLogInputStream edits, long expectedStartingTxId)
       throws IOException {
     return loadFSEdits(edits, expectedStartingTxId, null, null);
@@ -140,10 +140,11 @@ public class FSEditLogLoader {
     try {
       long startTime = monotonicNow();
       FSImage.LOG.info("Start loading edits file " + edits.getName());
+      // vortual: 核心代码
       long numEdits = loadEditRecords(edits, false, expectedStartingTxId,
           startOpt, recovery);
-      FSImage.LOG.info("Edits file " + edits.getName() 
-          + " of size " + edits.length() + " edits # " + numEdits 
+      FSImage.LOG.info("Edits file " + edits.getName()
+          + " of size " + edits.length() + " edits # " + numEdits
           + " loaded in " + (monotonicNow()-startTime)/1000 + " seconds");
       return numEdits;
     } finally {
@@ -170,7 +171,7 @@ public class FSEditLogLoader {
 
     long recentOpcodeOffsets[] = new long[4];
     Arrays.fill(recentOpcodeOffsets, -1);
-    
+
     long expectedTxId = expectedStartingTxId;
     long numEdits = 0;
     long lastTxId = in.getLastTxId();
@@ -181,12 +182,13 @@ public class FSEditLogLoader {
     Counter counter = prog.getCounter(Phase.LOADING_EDITS, step);
     long lastLogTime = monotonicNow();
     long lastInodeId = fsNamesys.dir.getLastInodeId();
-    
+
     try {
       while (true) {
         try {
           FSEditLogOp op;
           try {
+            // vortual: 读取日志 http 请求
             op = in.readOp();
             if (op == null) {
               break;
@@ -211,13 +213,13 @@ public class FSEditLogLoader {
           recentOpcodeOffsets[(int)(numEdits % recentOpcodeOffsets.length)] =
             in.getPosition();
           if (op.hasTransactionId()) {
-            if (op.getTransactionId() > expectedTxId) { 
+            if (op.getTransactionId() > expectedTxId) {
               MetaRecoveryContext.editLogLoaderPrompt("There appears " +
                   "to be a gap in the edit log.  We expected txid " +
                   expectedTxId + ", but got txid " +
                   op.getTransactionId() + ".", recovery, "ignoring missing " +
                   " transaction IDs");
-            } else if (op.getTransactionId() < expectedTxId) { 
+            } else if (op.getTransactionId() < expectedTxId) {
               MetaRecoveryContext.editLogLoaderPrompt("There appears " +
                   "to be an out-of-order edit in the edit log.  We " +
                   "expected txid " + expectedTxId + ", but got txid " +
@@ -231,6 +233,7 @@ public class FSEditLogLoader {
               LOG.trace("op=" + op + ", startOpt=" + startOpt
                   + ", numEdits=" + numEdits + ", totalEdits=" + totalEdits);
             }
+            // vortual: 把读取的元数据作用到自己的元数据里面。只回放到内存，不会再写一份 edit log 到磁盘
             long inodeId = applyEditLogOp(op, fsDir, startOpt,
                 in.getVersion(true), lastInodeId);
             if (lastInodeId < inodeId) {
@@ -297,7 +300,7 @@ public class FSEditLogLoader {
     }
     return numEdits;
   }
-  
+
   // allocate and update last allocated inode id
   private long getAndUpdateLastInodeId(long inodeIdFromOp, int logVersion,
       long lastInodeId) throws IOException {
@@ -411,7 +414,7 @@ public class FSEditLogLoader {
       // Fall-through for case 2.
       // Regardless of whether it's a new file or an updated file,
       // update the block list.
-      
+
       // Update the salient file attributes.
       newFile.setAccessTime(addCloseOp.atime, Snapshot.CURRENT_STATE_ID);
       newFile.setModificationTime(addCloseOp.mtime, Snapshot.CURRENT_STATE_ID);
@@ -494,7 +497,7 @@ public class FSEditLogLoader {
       INodeFile oldFile = INodeFile.valueOf(iip.getLastINode(), path);
       // Update in-memory data structures
       updateBlocks(fsDir, updateOp, iip, oldFile);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(updateOp.rpcClientId, updateOp.rpcCallId);
       }
@@ -536,7 +539,7 @@ public class FSEditLogLoader {
       }
       FSDirConcatOp.unprotectedConcat(fsDir, targetIIP, srcFiles,
           concatDeleteOp.timestamp);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(concatDeleteOp.rpcClientId,
             concatDeleteOp.rpcCallId);
@@ -548,7 +551,7 @@ public class FSEditLogLoader {
       final String src = renameReservedPathsOnUpgrade(renameOp.src, logVersion);
       final String dst = renameReservedPathsOnUpgrade(renameOp.dst, logVersion);
       FSDirRenameOp.renameForEditLog(fsDir, src, dst, renameOp.timestamp);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(renameOp.rpcClientId, renameOp.rpcCallId);
       }
@@ -559,7 +562,7 @@ public class FSEditLogLoader {
       FSDirDeleteOp.deleteForEditLog(
           fsDir, renameReservedPathsOnUpgrade(deleteOp.path, logVersion),
           deleteOp.timestamp);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(deleteOp.rpcClientId, deleteOp.rpcCallId);
       }
@@ -644,7 +647,7 @@ public class FSEditLogLoader {
       FSDirSymlinkOp.unprotectedAddSymlink(fsDir, iip.getExistingINodes(),
           iip.getLastLocalName(), inodeId, symlinkOp.value, symlinkOp.mtime,
           symlinkOp.atime, symlinkOp.permissionStatus);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(symlinkOp.rpcClientId, symlinkOp.rpcCallId);
       }
@@ -656,7 +659,7 @@ public class FSEditLogLoader {
           renameReservedPathsOnUpgrade(renameOp.src, logVersion),
           renameReservedPathsOnUpgrade(renameOp.dst, logVersion),
           renameOp.timestamp, renameOp.options);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(renameOp.rpcClientId, renameOp.rpcCallId);
       }
@@ -740,7 +743,7 @@ public class FSEditLogLoader {
       collectedBlocks.clear();
       fsNamesys.dir.removeFromInodeMap(removedINodes);
       removedINodes.clear();
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(deleteSnapshotOp.rpcClientId,
             deleteSnapshotOp.rpcCallId);
@@ -756,7 +759,7 @@ public class FSEditLogLoader {
       fsNamesys.getSnapshotManager().renameSnapshot(iip,
           snapshotRoot, renameSnapshotOp.snapshotOldName,
           renameSnapshotOp.snapshotNewName);
-      
+
       if (toAddRetryCache) {
         fsNamesys.addCacheEntry(renameSnapshotOp.rpcClientId,
             renameSnapshotOp.rpcCallId);
@@ -795,7 +798,7 @@ public class FSEditLogLoader {
     case OP_ROLLING_UPGRADE_START: {
       if (startOpt == StartupOption.ROLLINGUPGRADE) {
         final RollingUpgradeStartupOption rollingUpgradeOpt
-            = startOpt.getRollingUpgradeStartupOption(); 
+            = startOpt.getRollingUpgradeStartupOption();
         if (rollingUpgradeOpt == RollingUpgradeStartupOption.ROLLBACK) {
           throw new RollingUpgradeOp.RollbackException();
         } else if (rollingUpgradeOpt == RollingUpgradeStartupOption.DOWNGRADE) {
@@ -924,7 +927,7 @@ public class FSEditLogLoader {
     }
     return inodeId;
   }
-  
+
   private static String formatEditLogReplayError(EditLogInputStream in,
       long recentOpcodeOffsets[], long txid) {
     StringBuilder sb = new StringBuilder();
@@ -950,7 +953,7 @@ public class FSEditLogLoader {
     BlockInfoContiguous[] oldBlocks = file.getBlocks();
     Block pBlock = op.getPenultimateBlock();
     Block newBlock= op.getLastBlock();
-    
+
     if (pBlock != null) { // the penultimate block is not null
       Preconditions.checkState(oldBlocks != null && oldBlocks.length > 0);
       // compare pBlock with the last block of oldBlocks
@@ -962,7 +965,7 @@ public class FSEditLogLoader {
                 + op.getPath() + ", the old last block is " + oldLastBlock
                 + ", and the block read from editlog is " + pBlock);
       }
-      
+
       oldLastBlock.setNumBytes(pBlock.getNumBytes());
       if (oldLastBlock instanceof BlockInfoContiguousUnderConstruction) {
         fsNamesys.getBlockManager().forceCompleteBlock(file,
@@ -979,7 +982,7 @@ public class FSEditLogLoader {
     file.addBlock(newBI);
     fsNamesys.getBlockManager().processQueuedMessagesForBlock(newBlock);
   }
-  
+
   /**
    * Update in-memory data structures with new block information.
    * @throws IOException
@@ -990,30 +993,30 @@ public class FSEditLogLoader {
     BlockInfoContiguous[] oldBlocks = file.getBlocks();
     Block[] newBlocks = op.getBlocks();
     String path = op.getPath();
-    
+
     // Are we only updating the last block's gen stamp.
     boolean isGenStampUpdate = oldBlocks.length == newBlocks.length;
-    
+
     // First, update blocks in common
     for (int i = 0; i < oldBlocks.length && i < newBlocks.length; i++) {
       BlockInfoContiguous oldBlock = oldBlocks[i];
       Block newBlock = newBlocks[i];
-      
+
       boolean isLastBlock = i == newBlocks.length - 1;
       if (oldBlock.getBlockId() != newBlock.getBlockId() ||
-          (oldBlock.getGenerationStamp() != newBlock.getGenerationStamp() && 
+          (oldBlock.getGenerationStamp() != newBlock.getGenerationStamp() &&
               !(isGenStampUpdate && isLastBlock))) {
         throw new IOException("Mismatched block IDs or generation stamps, " +
             "attempting to replace block " + oldBlock + " with " + newBlock +
             " as block # " + i + "/" + newBlocks.length + " of " +
             path);
       }
-      
+
       oldBlock.setNumBytes(newBlock.getNumBytes());
       boolean changeMade =
         oldBlock.getGenerationStamp() != newBlock.getGenerationStamp();
       oldBlock.setGenerationStamp(newBlock.getGenerationStamp());
-      
+
       if (oldBlock instanceof BlockInfoContiguousUnderConstruction &&
           (!isLastBlock || op.shouldCompleteLastBlock())) {
         changeMade = true;
@@ -1027,7 +1030,7 @@ public class FSEditLogLoader {
         fsNamesys.getBlockManager().processQueuedMessagesForBlock(newBlock);
       }
     }
-    
+
     if (newBlocks.length < oldBlocks.length) {
       // We're removing a block from the file, e.g. abandonBlock(...)
       if (!file.isUnderConstruction()) {
@@ -1107,7 +1110,7 @@ public class FSEditLogLoader {
       throw new IOException(msg, e);
     }
   }
-  
+
   /**
    * Find the last valid transaction ID in the stream.
    * If there are invalid or corrupt transactions in the middle of the stream,
@@ -1191,7 +1194,7 @@ public class FSEditLogLoader {
 
   /**
    * Stream wrapper that keeps track of the current stream position.
-   * 
+   *
    * This stream also allows us to set a limit on how many bytes we can read
    * without getting an exception.
    */
@@ -1212,7 +1215,7 @@ public class FSEditLogLoader {
             "the limit at offset " + limitPos);
       }
     }
-    
+
     @Override
     public int read() throws IOException {
       checkLimit(1);
@@ -1266,7 +1269,7 @@ public class FSEditLogLoader {
     public long getPos() {
       return curPos;
     }
-    
+
     @Override
     public long skip(long amt) throws IOException {
       long extra = (curPos + amt) - limitPos;
@@ -1288,7 +1291,7 @@ public class FSEditLogLoader {
    * Creates a Step used for updating startup progress, populated with
    * information from the given edits.  The step always includes the log's name.
    * If the log has a known length, then the length is included in the step too.
-   * 
+   *
    * @param edits EditLogInputStream to use for populating step
    * @return Step populated with information from edits
    * @throws IOException thrown if there is an I/O error

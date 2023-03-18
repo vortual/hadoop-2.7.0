@@ -70,7 +70,7 @@ import org.mortbay.jetty.EofException;
  */
 @InterfaceAudience.Private
 public class TransferFsImage {
-  
+
   public final static String CONTENT_LENGTH = "Content-Length";
   public final static String FILE_LENGTH = "File-Length";
   public final static String MD5_HEADER = "X-MD5-Digest";
@@ -91,7 +91,7 @@ public class TransferFsImage {
   }
 
   private static final Log LOG = LogFactory.getLog(TransferFsImage.class);
-  
+
   public static void downloadMostRecentImageToDirectory(URL infoServer,
       File dir) throws IOException {
     String fileId = ImageServlet.getParamStringForMostRecentImage();
@@ -104,13 +104,13 @@ public class TransferFsImage {
     String fileid = ImageServlet.getParamStringForImage(null,
         imageTxId, dstStorage);
     String fileName = NNStorage.getCheckpointImageFileName(imageTxId);
-    
+
     List<File> dstFiles = dstStorage.getFiles(
         NameNodeDirType.IMAGE, fileName);
     if (dstFiles.isEmpty()) {
       throw new IOException("No targets in destination storage!");
     }
-    
+
     MD5Hash hash = getFileClient(fsName, fileid, dstFiles, dstStorage, needDigest);
     LOG.info("Downloaded file " + dstFiles.get(0).getName() + " size " +
         dstFiles.get(0).length() + " bytes.");
@@ -148,7 +148,7 @@ public class TransferFsImage {
     List<File> finalFiles = dstStorage.getFiles(NameNodeDirType.EDITS,
         finalFileName);
     assert !finalFiles.isEmpty() : "No checkpoint targets.";
-    
+
     for (File f : finalFiles) {
       if (f.exists() && FileUtil.canRead(f)) {
         LOG.info("Skipping download of remote edit log " +
@@ -185,7 +185,7 @@ public class TransferFsImage {
       }
     }
   }
- 
+
   /**
    * Requests that the NameNode download an image from this node.
    *
@@ -216,15 +216,17 @@ public class TransferFsImage {
   public static void uploadImageFromStorage(URL fsName, Configuration conf,
       NNStorage storage, NameNodeFile nnf, long txid, Canceler canceler)
       throws IOException {
+    // vortual: 请求的地址： ImageServlet.PATH_SPEC。对应： /imagetransfer
     URL url = new URL(fsName, ImageServlet.PATH_SPEC);
     long startTime = Time.monotonicNow();
     try {
+      // vortual: 核心代码
       uploadImage(url, conf, storage, nnf, txid, canceler);
     } catch (HttpPutFailedException e) {
       if (e.getResponseCode() == HttpServletResponse.SC_CONFLICT) {
         // this is OK - this means that a previous attempt to upload
         // this checkpoint succeeded even though we thought it failed.
-        LOG.info("Image upload with txid " + txid + 
+        LOG.info("Image upload with txid " + txid +
             " conflicted with a previous image upload to the " +
             "same NameNode. Continuing...", e);
         return;
@@ -269,7 +271,7 @@ public class TransferFsImage {
       connection.setRequestMethod("PUT");
       connection.setDoOutput(true);
 
-      
+
       int chunkSize = conf.getInt(
           DFSConfigKeys.DFS_IMAGE_TRANSFER_CHUNKSIZE_KEY,
           DFSConfigKeys.DFS_IMAGE_TRANSFER_CHUNKSIZE_DEFAULT);
@@ -366,7 +368,7 @@ public class TransferFsImage {
           LOG.warn("SIMULATING A CORRUPT BYTE IN IMAGE TRANSFER!");
           buf[0]++;
         }
-        
+
         out.write(buf, 0, num);
         if (throttler != null) {
           throttler.throttle(num, canceler);
@@ -386,7 +388,7 @@ public class TransferFsImage {
    * Client-side Method to fetch file from a server
    * Copies the response from the URL to a list of local files.
    * @param dstStorage if an error occurs writing to one of the files,
-   *                   this storage object will be notified. 
+   *                   this storage object will be notified.
    * @Return a digest of the received file if getChecksum is true
    */
   static MD5Hash getFileClient(URL infoServer,
@@ -396,7 +398,7 @@ public class TransferFsImage {
     LOG.info("Opening connection to " + url);
     return doGetUrl(url, localPaths, dstStorage, getChecksum);
   }
-  
+
   public static MD5Hash doGetUrl(URL url, List<File> localPaths,
       Storage dstStorage, boolean getChecksum) throws IOException {
     HttpURLConnection connection;
@@ -416,7 +418,7 @@ public class TransferFsImage {
           "\nResponse message:\n" + connection.getResponseMessage(),
           connection);
     }
-    
+
     long advertisedSize;
     String contentLength = connection.getHeaderField(CONTENT_LENGTH);
     if (contentLength != null) {
@@ -471,7 +473,7 @@ public class TransferFsImage {
       }
       localPaths = newLocalPaths;
     }
-    
+
 
     long received = 0;
     MessageDigest digester = null;
@@ -502,13 +504,13 @@ public class TransferFsImage {
             }
           }
         }
-        
+
         if (outputStreams.isEmpty()) {
           throw new IOException(
               "Unable to download to any storage directory");
         }
       }
-      
+
       int num = 1;
       byte[] buf = new byte[HdfsConstants.IO_FILE_BUFFER_SIZE];
       while (num > 0) {
@@ -555,18 +557,18 @@ public class TransferFsImage {
 
     if (digester != null) {
       MD5Hash computedDigest = new MD5Hash(digester.digest());
-      
+
       if (advertisedDigest != null &&
           !computedDigest.equals(advertisedDigest)) {
         deleteTmpFiles(localPaths);
         throw new IOException("File " + url + " computed digest " +
-            computedDigest + " does not match advertised digest " + 
+            computedDigest + " does not match advertised digest " +
             advertisedDigest);
       }
       return computedDigest;
     } else {
       return null;
-    }    
+    }
   }
 
   private static void deleteTmpFiles(List<File> files) {
@@ -600,7 +602,7 @@ public class TransferFsImage {
       super(msg);
       this.responseCode = connection.getResponseCode();
     }
-    
+
     public int getResponseCode() {
       return responseCode;
     }

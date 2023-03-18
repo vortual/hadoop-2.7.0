@@ -820,6 +820,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   /** Get a lease and start automatic renewal */
   private void beginFileLease(final long inodeId, final DFSOutputStream out)
       throws IOException {
+    // vortual: 启动一个后台线程刷新契约
     getLeaseRenewer().put(inodeId, out, this);
   }
 
@@ -1703,6 +1704,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
         src, masked, flag, createParent, replication, blockSize, progress,
         buffersize, dfsClientConf.createChecksum(checksumOpt),
         getFavoredNodesStr(favoredNodes));
+    // vortual: 获取文件契约并定期刷新
     beginFileLease(result.getFileId(), result);
     return result;
   }

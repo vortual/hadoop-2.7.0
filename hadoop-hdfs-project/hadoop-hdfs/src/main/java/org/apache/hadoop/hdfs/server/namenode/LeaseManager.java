@@ -45,9 +45,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 /**
- * LeaseManager does the lease housekeeping for writing on files.   
+ * LeaseManager does the lease housekeeping for writing on files.
  * This class also provides useful static methods for lease recovery.
- * 
+ *
  * Lease Recovery Algorithm
  * 1) Namenode retrieves lease information
  * 2) For each file f in the lease, consider the last block b of f
@@ -58,7 +58,7 @@ import com.google.common.base.Preconditions;
  * 2.4) p gets the block info from each datanode
  * 2.5) p computes the minimum block length
  * 2.6) p updates the datanodes, which have a valid generation stamp,
- *      with the new generation stamp and the minimum block length 
+ *      with the new generation stamp and the minimum block length
  * 2.7) p acknowledges the namenode the update results
 
  * 2.8) Namenode updates the BlockInfo
@@ -83,7 +83,7 @@ public class LeaseManager {
   // Set of: Lease
   private final NavigableSet<Lease> sortedLeases = new TreeSet<Lease>();
 
-  // 
+  //
   // Map path names to leases. It is protected by the sortedLeases lock.
   // The map stores pathnames in lexicographical order.
   //
@@ -147,7 +147,7 @@ public class LeaseManager {
     }
     return count;
   }
-  
+
   /**
    * Adds (or re-adds) the lease for the specified file.
    */
@@ -248,7 +248,7 @@ public class LeaseManager {
     private final String holder;
     private long lastUpdate;
     private final Collection<String> paths = new TreeSet<String>();
-  
+
     /** Only LeaseManager object can create a lease */
     private Lease(String holder) {
       this.holder = holder;
@@ -281,7 +281,7 @@ public class LeaseManager {
       return "[Lease.  Holder: " + holder
           + ", pendingcreates: " + paths.size() + "]";
     }
-  
+
     @Override
     public int compareTo(Lease o) {
       Lease l1 = this;
@@ -296,7 +296,7 @@ public class LeaseManager {
         return l1.holder.compareTo(l2.holder);
       }
     }
-  
+
     @Override
     public boolean equals(Object o) {
       if (!(o instanceof Lease)) {
@@ -309,12 +309,12 @@ public class LeaseManager {
       }
       return false;
     }
-  
+
     @Override
     public int hashCode() {
       return holder.hashCode();
     }
-    
+
     Collection<String> getPaths() {
       return paths;
     }
@@ -327,7 +327,7 @@ public class LeaseManager {
       paths.remove(oldpath);
       paths.add(newpath);
     }
-    
+
     @VisibleForTesting
     long getLastUpdate() {
       return lastUpdate;
@@ -363,7 +363,7 @@ public class LeaseManager {
         LOG.debug(LeaseManager.class.getSimpleName()
             + ".removeLeaseWithPrefixPath: entry=" + entry);
       }
-      removeLease(entry.getValue(), entry.getKey());    
+      removeLease(entry.getValue(), entry.getKey());
     }
   }
 
@@ -375,7 +375,7 @@ public class LeaseManager {
 
     final Map<String, Lease> entries = new HashMap<String, Lease>();
     int srclen = prefix.length();
-    
+
     // prefix may ended with '/'
     if (prefix.charAt(srclen - 1) == Path.SEPARATOR_CHAR) {
       srclen -= 1;
@@ -395,9 +395,9 @@ public class LeaseManager {
 
   public void setLeasePeriod(long softLimit, long hardLimit) {
     this.softLimit = softLimit;
-    this.hardLimit = hardLimit; 
+    this.hardLimit = hardLimit;
   }
-  
+
   /******************************************************
    * Monitor checks for leases that have expired,
    * and disposes of them.
@@ -423,7 +423,7 @@ public class LeaseManager {
               fsnamesystem.getEditLog().logSync();
             }
           }
-  
+
           Thread.sleep(HdfsServerConstants.NAMENODE_LEASE_RECHECK_INTERVAL);
         } catch(InterruptedException ie) {
           if (LOG.isDebugEnabled()) {
@@ -452,7 +452,7 @@ public class LeaseManager {
     }
     return inodes;
   }
-  
+
   /** Check the leases beginning from the oldest.
    *  @return true is sync is needed.
    */
@@ -466,6 +466,7 @@ public class LeaseManager {
     } catch(NoSuchElementException e) {}
 
     while(leaseToCheck != null) {
+      // vortual: 如果最老的契约都没过期，就不用继续看后面的契约了 sortedLeases 是按照契约更新时间排序的
       if (!leaseToCheck.expiredHardLimit()) {
         break;
       }
@@ -473,7 +474,7 @@ public class LeaseManager {
       LOG.info(leaseToCheck + " has expired hard limit");
 
       final List<String> removing = new ArrayList<String>();
-      // need to create a copy of the oldest lease paths, because 
+      // need to create a copy of the oldest lease paths, because
       // internalReleaseLease() removes paths corresponding to empty files,
       // i.e. it needs to modify the collection being iterated over
       // causing ConcurrentModificationException
@@ -534,7 +535,7 @@ public class LeaseManager {
     lmthread = new Daemon(new Monitor());
     lmthread.start();
   }
-  
+
   void stopMonitor() {
     if (lmthread != null) {
       shouldRunMonitor = false;

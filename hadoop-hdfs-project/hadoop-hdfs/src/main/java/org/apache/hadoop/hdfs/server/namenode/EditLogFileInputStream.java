@@ -74,7 +74,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
   private FSEditLogLoader.PositionTrackingInputStream tracker = null;
   private DataInputStream dataIn = null;
   static final Log LOG = LogFactory.getLog(EditLogInputStream.class);
-  
+
   /**
    * Open an EditLogInputStream for the given file.
    * The file is pretransactional, so has no txids
@@ -99,7 +99,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
       boolean isInProgress) {
     this(new FileLog(name), firstTxId, lastTxId, isInProgress);
   }
-  
+
   /**
    * Open an EditLogInputStream for the given URL.
    *
@@ -121,11 +121,11 @@ public class EditLogFileInputStream extends EditLogInputStream {
     return new EditLogFileInputStream(new URLLog(connectionFactory, url),
         startTxId, endTxId, inProgress);
   }
-  
+
   private EditLogFileInputStream(LogSource log,
       long firstTxId, long lastTxId,
       boolean isInProgress) {
-      
+
     this.log = log;
     this.firstTxId = firstTxId;
     this.lastTxId = lastTxId;
@@ -138,6 +138,9 @@ public class EditLogFileInputStream extends EditLogInputStream {
     Preconditions.checkState(state == State.UNINIT);
     BufferedInputStream bin = null;
     try {
+      // vortual: 这里的 log 是 URLLog. 对应代码：org.apache.hadoop.hdfs.server.namenode.EditLogFileInputStream.fromUrl
+      // vortual: 所以这里调用的是 URLLog 的实现方法： logorg.apache.hadoop.hdfs.server.namenode.EditLogFileInputStream.URLLog.getInputStream
+      // vortual: 返回 http 请求流
       fStream = log.getInputStream();
       bin = new BufferedInputStream(fStream);
       tracker = new FSEditLogLoader.PositionTrackingInputStream(bin);
@@ -173,7 +176,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
   public long getFirstTxId() {
     return firstTxId;
   }
-  
+
   @Override
   public long getLastTxId() {
     return lastTxId;
@@ -187,6 +190,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
   private FSEditLogOp nextOpImpl(boolean skipBrokenEdits) throws IOException {
     FSEditLogOp op = null;
     switch (state) {
+      // vortual: 默认是 UNINIT 先进这里，后面再继续调用 nextOpImpl(skipBrokenEdits);
     case UNINIT:
       try {
         init(true);
@@ -200,6 +204,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
       Preconditions.checkState(state != State.UNINIT);
       return nextOpImpl(skipBrokenEdits);
     case OPEN:
+      // vortual: 读取日志
       op = reader.readOp(skipBrokenEdits);
       if ((op != null) && (op.hasTransactionId())) {
         long txId = op.getTransactionId();
@@ -210,7 +215,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
           // edit log.  In that case, you can end up with an unfinalized edit log
           // which has some garbage at the end.
           // JournalManager#recoverUnfinalizedSegments will finalize these
-          // unfinished edit logs, giving them a defined final transaction 
+          // unfinished edit logs, giving them a defined final transaction
           // ID.  Then they will be renamed, so that any subsequent
           // readers will have this information.
           //
@@ -290,12 +295,12 @@ public class EditLogFileInputStream extends EditLogInputStream {
     // file size + size of both buffers
     return log.length();
   }
-  
+
   @Override
   public boolean isInProgress() {
     return isInProgress;
   }
-  
+
   @Override
   public String toString() {
     return getName();
@@ -313,7 +318,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
       return new FSEditLogLoader.EditLogValidation(0,
           HdfsConstants.INVALID_TXID, true);
     }
-    
+
     try {
       return FSEditLogLoader.validateEditLog(in);
     } finally {
@@ -392,7 +397,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
     }
     return logVersion;
   }
-  
+
   /**
    * Exception indicating that the header of an edits log file is
    * corrupted. This can be because the header is not present,
@@ -406,16 +411,16 @@ public class EditLogFileInputStream extends EditLogInputStream {
       super(msg);
     }
   }
-  
+
   private interface LogSource {
     public InputStream getInputStream() throws IOException;
     public long length();
     public String getName();
   }
-  
+
   private static class FileLog implements LogSource {
     private final File file;
-    
+
     public FileLog(File file) {
       this.file = file;
     }
@@ -463,7 +468,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
               } catch (AuthenticationException e) {
                 throw new IOException(e);
               }
-              
+
               if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                 throw new HttpGetFailedException(
                     "Fetch of " + url +
@@ -471,7 +476,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
                     "\nResponse message:\n" + connection.getResponseMessage(),
                     connection);
               }
-        
+
               String contentLength = connection.getHeaderField(CONTENT_LENGTH);
               if (contentLength != null) {
                 advertisedSize = Long.parseLong(contentLength);
@@ -483,7 +488,7 @@ public class EditLogFileInputStream extends EditLogInputStream {
                 throw new IOException(CONTENT_LENGTH + " header is not provided " +
                                       "by the server when trying to fetch " + url);
               }
-        
+
               return connection.getInputStream();
             }
           });

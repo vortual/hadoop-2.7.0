@@ -41,31 +41,31 @@ abstract public class FSOutputSummer extends OutputStream {
   private byte checksum[];
   // The number of valid bytes in the buffer.
   private int count;
-  
+
   // We want this value to be a multiple of 3 because the native code checksums
   // 3 chunks simultaneously. The chosen value of 9 strikes a balance between
   // limiting the number of JNI calls and flushing to the underlying stream
   // relatively frequently.
   private static final int BUFFER_NUM_CHUNKS = 9;
-  
+
   protected FSOutputSummer(DataChecksum sum) {
     this.sum = sum;
     this.buf = new byte[sum.getBytesPerChecksum() * BUFFER_NUM_CHUNKS];
     this.checksum = new byte[getChecksumSize() * BUFFER_NUM_CHUNKS];
     this.count = 0;
   }
-  
+
   /* write the data chunk in <code>b</code> staring at <code>offset</code> with
    * a length of <code>len > 0</code>, and its checksum
    */
   protected abstract void writeChunk(byte[] b, int bOffset, int bLen,
       byte[] checksum, int checksumOffset, int checksumLen) throws IOException;
-  
+
   /**
    * Check if the implementing OutputStream is closed and should no longer
    * accept writes. Implementations should do nothing if this stream is not
    * closed, and should throw an {@link IOException} if it is closed.
-   * 
+   *
    * @throws IOException if this stream is already closed.
    */
   protected abstract void checkClosed() throws IOException;
@@ -73,6 +73,7 @@ abstract public class FSOutputSummer extends OutputStream {
   /** Write one byte */
   @Override
   public synchronized void write(int b) throws IOException {
+    // vortual: 先写到缓冲区
     buf[count++] = (byte)b;
     if(count == buf.length) {
       flushBuffer();
@@ -80,16 +81,16 @@ abstract public class FSOutputSummer extends OutputStream {
   }
 
   /**
-   * Writes <code>len</code> bytes from the specified byte array 
+   * Writes <code>len</code> bytes from the specified byte array
    * starting at offset <code>off</code> and generate a checksum for
    * each data chunk.
    *
    * <p> This method stores bytes from the given array into this
-   * stream's buffer before it gets checksumed. The buffer gets checksumed 
-   * and flushed to the underlying output stream when all data 
+   * stream's buffer before it gets checksumed. The buffer gets checksumed
+   * and flushed to the underlying output stream when all data
    * in a checksum chunk are in the buffer.  If the buffer is empty and
    * requested length is at least as large as the size of next checksum chunk
-   * size, this method will checksum and write the chunk directly 
+   * size, this method will checksum and write the chunk directly
    * to the underlying output stream.  Thus it avoids uneccessary data copy.
    *
    * @param      b     the data.
@@ -100,9 +101,9 @@ abstract public class FSOutputSummer extends OutputStream {
   @Override
   public synchronized void write(byte b[], int off, int len)
       throws IOException {
-    
+
     checkClosed();
-    
+
     if (off < 0 || len < 0 || off > b.length - len) {
       throw new ArrayIndexOutOfBoundsException();
     }
@@ -110,7 +111,7 @@ abstract public class FSOutputSummer extends OutputStream {
     for (int n=0;n<len;n+=write1(b, off+n, len-n)) {
     }
   }
-  
+
   /**
    * Write a portion of an array, flushing to the underlying
    * stream at most once if necessary.
@@ -124,7 +125,7 @@ abstract public class FSOutputSummer extends OutputStream {
       writeChecksumChunks(b, off, length);
       return length;
     }
-    
+
     // copy user data to local buffer
     int bytesToCopy = buf.length-count;
     bytesToCopy = (len<bytesToCopy) ? len : bytesToCopy;
@@ -133,12 +134,12 @@ abstract public class FSOutputSummer extends OutputStream {
     if (count == buf.length) {
       // local buffer is full
       flushBuffer();
-    } 
+    }
     return bytesToCopy;
   }
 
   /* Forces any buffered output bytes to be checksumed and written out to
-   * the underlying output stream. 
+   * the underlying output stream.
    */
   protected synchronized void flushBuffer() throws IOException {
     flushBuffer(false, true);

@@ -58,6 +58,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  * When it takes a checkpoint, it saves it to its local
  * storage and then uploads it to the remote NameNode.
  */
+// vortual: 这个线程启动在 Standby NN 上，周期性地合并元数据到本地磁盘，并且上传到 Active NN
 @InterfaceAudience.Private
 public class StandbyCheckpointer {
   private static final Log LOG = LogFactory.getLog(StandbyCheckpointer.class);
@@ -73,16 +74,16 @@ public class StandbyCheckpointer {
 
   private final Object cancelLock = new Object();
   private Canceler canceler;
-  
+
   // Keep track of how many checkpoints were canceled.
   // This is for use in tests.
   private static int canceledCount = 0;
-  
+
   public StandbyCheckpointer(Configuration conf, FSNamesystem ns)
       throws IOException {
     this.namesystem = ns;
     this.conf = conf;
-    this.checkpointConf = new CheckpointConf(conf); 
+    this.checkpointConf = new CheckpointConf(conf);
     this.thread = new CheckpointerThread();
     this.uploadThreadFactory = new ThreadFactoryBuilder().setDaemon(true)
         .setNameFormat("TransferFsImageUpload-%d").build();
@@ -93,7 +94,7 @@ public class StandbyCheckpointer {
   /**
    * Determine the address of the NN we are checkpointing
    * as well as our own HTTP address from the configuration.
-   * @throws IOException 
+   * @throws IOException
    */
   private void setNameNodeAddresses(Configuration conf) throws IOException {
     // Look up our own address.
@@ -102,21 +103,21 @@ public class StandbyCheckpointer {
     // Look up the active node's address
     Configuration confForActive = HAUtil.getConfForOtherNode(conf);
     activeNNAddress = getHttpAddress(confForActive);
-    
+
     // Sanity-check.
     Preconditions.checkArgument(checkAddress(activeNNAddress),
         "Bad address for active NN: %s", activeNNAddress);
     Preconditions.checkArgument(checkAddress(myNNAddress),
         "Bad address for standby NN: %s", myNNAddress);
   }
-  
+
   private URL getHttpAddress(Configuration conf) throws IOException {
     final String scheme = DFSUtil.getHttpClientScheme(conf);
     String defaultHost = NameNode.getServiceAddress(conf, true).getHostName();
     URI addr = DFSUtil.getInfoServerWithDefaultHost(defaultHost, conf, scheme);
     return addr.toURL();
   }
-  
+
   /**
    * Ensure that the given address is valid and has a port
    * specified.
@@ -131,7 +132,7 @@ public class StandbyCheckpointer {
         "Serving checkpoints at " + myNNAddress);
     thread.start();
   }
-  
+
   public void stop() throws IOException {
     cancelAndPreventCheckpoints("Stopping checkpointer");
     thread.setShouldRun(false);
@@ -152,7 +153,7 @@ public class StandbyCheckpointer {
     assert canceler != null;
     final long txid;
     final NameNodeFile imageType;
-    
+
     // Acquire cpLock to make sure no one is modifying the name system.
     // It does not need the full namesystem write lock, since the only thing
     // that modifies namesystem on standby node is edit log replaying.
@@ -161,9 +162,9 @@ public class StandbyCheckpointer {
       assert namesystem.getEditLog().isOpenForRead() :
         "Standby Checkpointer should only attempt a checkpoint when " +
         "NN is in standby mode, but the edit logs are in an unexpected state";
-      
+
       FSImage img = namesystem.getFSImage();
-      
+
       long prevCheckpointTxId = img.getStorage().getMostRecentCheckpointTxId();
       long thisCheckpointTxId = img.getLastAppliedOrWrittenTxId();
       assert thisCheckpointTxId >= prevCheckpointTxId;
@@ -182,6 +183,7 @@ public class StandbyCheckpointer {
       } else {
         imageType = NameNodeFile.IMAGE;
       }
+      // vortual: 把元数据写到磁盘中
       img.saveNamespace(namesystem, imageType, canceler);
       txid = img.getStorage().getMostRecentCheckpointTxId();
       assert txid == thisCheckpointTxId : "expected to save checkpoint at txid=" +
@@ -195,12 +197,13 @@ public class StandbyCheckpointer {
     } finally {
       namesystem.cpUnlock();
     }
-    
+
     // Upload the saved checkpoint back to the active
     // Do this in a separate thread to avoid blocking transition to active
     // See HDFS-4816
     ExecutorService executor =
         Executors.newSingleThreadExecutor(uploadThreadFactory);
+    // vortual: 将合并完的 fsimage 上传给 Active NN
     Future<Void> upload = executor.submit(new Callable<Void>() {
       @Override
       public Void call() throws IOException {
@@ -222,7 +225,7 @@ public class StandbyCheckpointer {
           e.getCause());
     }
   }
-  
+
   /**
    * Cancel any checkpoint that's currently being made,
    * and prevent any new checkpoints from starting for the next
@@ -231,7 +234,7 @@ public class StandbyCheckpointer {
   public void cancelAndPreventCheckpoints(String msg) throws ServiceFailedException {
     synchronized (cancelLock) {
       // The checkpointer thread takes this lock and checks if checkpointing is
-      // postponed. 
+      // postponed.
       thread.preventCheckpointsFor(PREVENT_AFTER_CANCEL_MS);
 
       // Before beginning a checkpoint, the checkpointer thread
@@ -245,7 +248,7 @@ public class StandbyCheckpointer {
       }
     }
   }
-  
+
   @VisibleForTesting
   static int getCanceledCount() {
     return canceledCount;
@@ -264,7 +267,7 @@ public class StandbyCheckpointer {
     private CheckpointerThread() {
       super("Standby State Checkpointer");
     }
-    
+
     private void setShouldRun(boolean shouldRun) {
       this.shouldRun = shouldRun;
     }
@@ -277,6 +280,7 @@ public class StandbyCheckpointer {
           new PrivilegedAction<Object>() {
           @Override
           public Object run() {
+            // vortual: 核心代码
             doWork();
             return null;
           }
@@ -289,7 +293,7 @@ public class StandbyCheckpointer {
      * mode. We need to not only cancel any concurrent checkpoint,
      * but also prevent any checkpoints from racing to start just
      * after the cancel call.
-     * 
+     *
      * @param delayMs the number of MS for which checkpoints will be
      * prevented
      */
@@ -318,27 +322,30 @@ public class StandbyCheckpointer {
           if (UserGroupInformation.isSecurityEnabled()) {
             UserGroupInformation.getCurrentUser().checkTGTAndReloginFromKeytab();
           }
-          
+
           final long now = monotonicNow();
           final long uncheckpointed = countUncheckpointedTxns();
           final long secsSinceLast = (now - lastCheckpointTime) / 1000;
-          
+
+          // vortual: 回滚 checkpoint
           boolean needCheckpoint = needRollbackCheckpoint;
           if (needCheckpoint) {
             LOG.info("Triggering a rollback fsimage for rolling upgrade.");
           } else if (uncheckpointed >= checkpointConf.getTxnCount()) {
-            LOG.info("Triggering checkpoint because there have been " + 
+            // vortual: 默认 1000000。距离上次 checkpoint 已经有 1000000 条日志没有 checkpoint 了
+            LOG.info("Triggering checkpoint because there have been " +
                 uncheckpointed + " txns since the last checkpoint, which " +
                 "exceeds the configured threshold " +
                 checkpointConf.getTxnCount());
             needCheckpoint = true;
           } else if (secsSinceLast >= checkpointConf.getPeriod()) {
+            // vortual: 默认 3600秒。一个小时，距离上次 checkpoint 已经一个小时了
             LOG.info("Triggering checkpoint because it has been " +
                 secsSinceLast + " seconds since the last checkpoint, which " +
                 "exceeds the configured interval " + checkpointConf.getPeriod());
             needCheckpoint = true;
           }
-          
+
           synchronized (cancelLock) {
             if (now < preventCheckpointsUntil) {
               LOG.info("But skipping this checkpoint since we are about to failover!");
@@ -348,8 +355,9 @@ public class StandbyCheckpointer {
             assert canceler == null;
             canceler = new Canceler();
           }
-          
+
           if (needCheckpoint) {
+            // vortual: 进行 checkpoint
             doCheckpoint();
             // reset needRollbackCheckpoint to false only when we finish a ckpt
             // for rollback image

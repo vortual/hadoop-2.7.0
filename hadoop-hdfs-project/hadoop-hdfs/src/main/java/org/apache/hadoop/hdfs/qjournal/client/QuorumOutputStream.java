@@ -104,8 +104,9 @@ class QuorumOutputStream extends EditLogOutputStream {
       QuorumCall<AsyncLogger, Void> qcall = loggers.sendEdits(
           segmentTxId, firstTxToFlush,
           numReadyTxns, data);
+      // vortual: 异步等待发送到 journal 的结果
       loggers.waitForWriteQuorum(qcall, writeTimeoutMs, "sendEdits");
-      
+
       // Since we successfully wrote this batch, let the loggers know. Any future
       // RPCs will thus let the loggers know of the most recent transaction, even
       // if a logger has fallen behind.
@@ -120,7 +121,7 @@ class QuorumOutputStream extends EditLogOutputStream {
     loggers.appendReport(sb);
     return sb.toString();
   }
-  
+
   @Override
   public String toString() {
     return "QuorumOutputStream starting at txid " + segmentTxId;

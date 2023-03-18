@@ -43,6 +43,7 @@ class FSDirMkdirOp {
 
   static HdfsFileStatus mkdirs(FSNamesystem fsn, String src,
       PermissionStatus permissions, boolean createParent) throws IOException {
+    // vortual: 目录树
     FSDirectory fsd = fsn.getFSDirectory();
     if(NameNode.stateChangeLog.isDebugEnabled()) {
       NameNode.stateChangeLog.debug("DIR* NameSystem.mkdirs: " + src);
@@ -188,7 +189,7 @@ class FSDirMkdirOp {
       INodesInPath existing, String localName, PermissionStatus perm)
       throws IOException {
     assert fsd.hasWriteLock();
-//    往内存写
+    // vortual: 往内存的目录树里面写
     existing = unprotectedMkdir(fsd, fsd.allocateNewInodeId(), existing,
         localName.getBytes(Charsets.UTF_8), perm, null, now());
     if (existing == null) {
@@ -201,6 +202,7 @@ class FSDirMkdirOp {
     NameNode.getNameNodeMetrics().incrFilesCreated();
 
     String cur = existing.getPath();
+    // vortual: 往 editlog 磁盘写
     fsd.getEditLog().logMkDir(cur, newNode);
     if (NameNode.stateChangeLog.isDebugEnabled()) {
       NameNode.stateChangeLog.debug("mkdirs: created directory " + cur);

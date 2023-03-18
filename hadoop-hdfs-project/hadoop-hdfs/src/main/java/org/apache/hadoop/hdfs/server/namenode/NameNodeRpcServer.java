@@ -607,6 +607,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
       stateChangeLog.debug("*DIR* NameNode.create: file "
           +src+" for "+clientName+" at "+clientMachine);
     }
+    // vortual: 检查路径长度
     if (!checkPathLength(src)) {
       throw new IOException("create: Pathname too long.  Limit "
           + MAX_PATH_LENGTH + " characters, " + MAX_PATH_DEPTH + " levels.");
@@ -621,6 +622,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
     try {
       PermissionStatus perm = new PermissionStatus(getRemoteUser()
           .getShortUserName(), null, masked);
+      // vortual: 创建文件
       status = namesystem.startFile(src, perm, clientName, clientMachine,
           flag.get(), createParent, replication, blockSize, supportedVersions,
           cacheEntry != null);
@@ -966,6 +968,7 @@ class NameNodeRpcServer implements NamenodeProtocols {
   }
 
   @Override // ClientProtocol
+  // vortual: 创建目录
   public boolean mkdirs(String src, FsPermission masked, boolean createParent)
       throws IOException {
     checkNNStartup();

@@ -258,6 +258,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     synchronized (infoLock) {
       this.cachingStrategy = dfsClient.getDefaultReadCachingStrategy();
     }
+    // vortual: 核心代码
     openInfo();
   }
 
@@ -867,6 +868,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
                   locatedBlocks.getFileLength() - pos);
             }
           }
+          // vortual: 将数据读入到 strategy 的 buf 中
           int result = readBuffer(strategy, off, realLen, corruptedBlockMap);
 
           if (result >= 0) {
@@ -907,6 +909,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
    */
   @Override
   public synchronized int read(final byte buf[], int off, int len) throws IOException {
+    // vortual: 将数据读入到 buf 中
     ReaderStrategy byteArrayReader = new ByteArrayStrategy(buf);
     TraceScope scope =
         dfsClient.getPathTraceScope("DFSInputStream#byteArrayRead", src);
@@ -919,6 +922,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
 
   @Override
   public synchronized int read(final ByteBuffer buf) throws IOException {
+    // vortual: 将数据读入到 buf 中
     ReaderStrategy byteBufferReader = new ByteBufferStrategy(buf);
     TraceScope scope =
         dfsClient.getPathTraceScope("DFSInputStream#byteBufferRead", src);

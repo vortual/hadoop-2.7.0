@@ -57,7 +57,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 /**
- * This class is used in Namesystem's jetty to retrieve/upload a file 
+ * This class is used in Namesystem's jetty to retrieve/upload a file
  * Typically used by the Secondary NameNode to retrieve image and
  * edit file for periodic checkpointing in Non-HA deployments.
  * Standby NameNode uses to upload checkpoints in HA deployments.
@@ -73,7 +73,7 @@ public class ImageServlet extends HttpServlet {
 
   public final static String CONTENT_DISPOSITION = "Content-Disposition";
   public final static String HADOOP_IMAGE_EDITS_HEADER = "X-Image-Edits-Name";
-  
+
   private static final String TXID_PARAM = "txid";
   private static final String START_TXID_PARAM = "startTxId";
   private static final String END_TXID_PARAM = "endTxId";
@@ -123,7 +123,7 @@ public class ImageServlet extends HttpServlet {
           } else if (parsedParams.isGetEdit()) {
             long startTxId = parsedParams.getStartTxId();
             long endTxId = parsedParams.getEndTxId();
-            
+
             File editFile = nnImage.getStorage()
                 .findFinalizedEditsFile(startTxId, endTxId);
             long start = monotonicNow();
@@ -159,7 +159,7 @@ public class ImageServlet extends HttpServlet {
           }
         }
       });
-      
+
     } catch (Throwable t) {
       String errMsg = "GetImage failed. " + StringUtils.stringifyException(t);
       response.sendError(HttpServletResponse.SC_GONE, errMsg);
@@ -204,14 +204,14 @@ public class ImageServlet extends HttpServlet {
         file.getName());
     response.setHeader(HADOOP_IMAGE_EDITS_HEADER, file.getName());
   }
-  
+
   /**
    * Construct a throttler from conf
    * @param conf configuration
    * @return a data transfer throttler
    */
   public final static DataTransferThrottler getThrottler(Configuration conf) {
-    long transferBandwidth = 
+    long transferBandwidth =
       conf.getLong(DFSConfigKeys.DFS_IMAGE_TRANSFER_RATE_KEY,
                    DFSConfigKeys.DFS_IMAGE_TRANSFER_RATE_DEFAULT);
     DataTransferThrottler throttler = null;
@@ -220,7 +220,7 @@ public class ImageServlet extends HttpServlet {
     }
     return throttler;
   }
-  
+
   @VisibleForTesting
   static boolean isValidRequestor(ServletContext context, String remoteUser,
       Configuration conf) throws IOException {
@@ -274,10 +274,10 @@ public class ImageServlet extends HttpServlet {
     LOG.info("ImageServlet rejecting: " + remoteUser);
     return false;
   }
-  
+
   /**
    * Set headers for content length, and, if available, md5.
-   * @throws IOException 
+   * @throws IOException
    */
   public static void setVerificationHeadersForGet(HttpServletResponse response,
       File file) throws IOException {
@@ -288,7 +288,7 @@ public class ImageServlet extends HttpServlet {
       response.setHeader(TransferFsImage.MD5_HEADER, hash.toString());
     }
   }
-  
+
   static String getParamStringForMostRecentImage() {
     return "getimage=1&" + TXID_PARAM + "=" + LATEST_FSIMAGE_VALUE;
   }
@@ -334,7 +334,7 @@ public class ImageServlet extends HttpServlet {
       for (Map.Entry<String, String[]> entry : pmap.entrySet()) {
         String key = entry.getKey();
         String[] val = entry.getValue();
-        if (key.equals("getimage")) { 
+        if (key.equals("getimage")) {
           isGetImage = true;
           try {
             txId = ServletUtil.parseLongParam(request, TXID_PARAM);
@@ -348,7 +348,7 @@ public class ImageServlet extends HttpServlet {
               throw nfe;
             }
           }
-        } else if (key.equals("getedit")) { 
+        } else if (key.equals("getedit")) {
           isGetEdit = true;
           startTxId = ServletUtil.parseLongParam(request, START_TXID_PARAM);
           endTxId = ServletUtil.parseLongParam(request, END_TXID_PARAM);
@@ -381,7 +381,7 @@ public class ImageServlet extends HttpServlet {
       Preconditions.checkState(isGetEdit);
       return startTxId;
     }
-    
+
     public long getEndTxId() {
       Preconditions.checkState(isGetEdit);
       return endTxId;
@@ -398,12 +398,12 @@ public class ImageServlet extends HttpServlet {
     boolean shouldFetchLatest() {
       return fetchLatest;
     }
-    
+
   }
 
   /**
    * Set headers for image length and if available, md5.
-   * 
+   *
    * @throws IOException
    */
   static void setVerificationHeadersForPut(HttpURLConnection connection,
@@ -419,7 +419,7 @@ public class ImageServlet extends HttpServlet {
 
   /**
    * Set the required parameters for uploading image
-   * 
+   *
    * @param httpMethod instance of method to set the parameters
    * @param storage colon separated storageInfo string
    * @param txid txid of the image
@@ -488,6 +488,7 @@ public class ImageServlet extends HttpServlet {
                       .handleUploadImageRequest(request, txid,
                           nnImage.getStorage(), stream,
                           parsedParams.getFileSize(), getThrottler(conf));
+                  // vortual: 核心代码
                   nnImage.saveDigestAndRenameCheckpointImage(nnf, txid,
                       downloadImageDigest);
                   // Metrics non-null only when used inside name node
@@ -497,6 +498,7 @@ public class ImageServlet extends HttpServlet {
                   }
                   // Now that we have a new checkpoint, we might be able to
                   // remove some old ones.
+                  // vortual: 清除已经没用的 editlog，已经合并到了 fsimage 的那些已经不需要了
                   nnImage.purgeOldStorage(nnf);
                 } finally {
                   stream.close();

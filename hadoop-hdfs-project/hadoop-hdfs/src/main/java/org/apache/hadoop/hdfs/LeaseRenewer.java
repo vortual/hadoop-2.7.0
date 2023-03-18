@@ -52,7 +52,7 @@ import com.google.common.annotations.VisibleForTesting;
  * This class also provides the following functionality:
  * <ul>
  * <li>
- * It maintains a map from (namenode, user) pairs to lease renewers. 
+ * It maintains a map from (namenode, user) pairs to lease renewers.
  * The same {@link LeaseRenewer} instance is used for renewing lease
  * for all the {@link DFSClient} to the same namenode and the same user.
  * </li>
@@ -82,7 +82,7 @@ class LeaseRenewer {
     return r;
   }
 
-  /** 
+  /**
    * A factory for sharing {@link LeaseRenewer} objects
    * among {@link DFSClient} instances
    * so that there is only one renewer per authority per user.
@@ -122,7 +122,7 @@ class LeaseRenewer {
           return this.authority.equals(that.authority)
                  && this.ugi.equals(that.ugi);
         }
-        return false;        
+        return false;
       }
 
       @Override
@@ -168,17 +168,17 @@ class LeaseRenewer {
   /** Only the daemon with currentId should run. */
   private int currentId = 0;
 
-  /** 
+  /**
    * A period in milliseconds that the lease renewer thread should run
    * after the map became empty.
    * In other words,
    * if the map is empty for a time period longer than the grace period,
-   * the renewer should terminate.  
+   * the renewer should terminate.
    */
   private long gracePeriod;
   /**
    * The time period in milliseconds
-   * that the renewer sleeps for each iteration. 
+   * that the renewer sleeps for each iteration.
    */
   private long sleepPeriod;
 
@@ -197,7 +197,7 @@ class LeaseRenewer {
   private LeaseRenewer(Factory.Key factorykey) {
     this.factorykey = factorykey;
     unsyncSetGraceSleepPeriod(LEASE_RENEWER_GRACE_DEFAULT);
-    
+
     if (LOG.isTraceEnabled()) {
       instantiationTrace = StringUtils.stringifyException(
         new Throwable("TRACE"));
@@ -241,7 +241,7 @@ class LeaseRenewer {
   }
 
   private synchronized long getSleepPeriod() {
-    return sleepPeriod;    
+    return sleepPeriod;
   }
 
   /** Set the grace period and adjust the sleep period accordingly. */
@@ -269,13 +269,13 @@ class LeaseRenewer {
   public boolean isEmpty() {
     return dfsclients.isEmpty();
   }
-  
+
   /** Used only by tests */
   synchronized String getDaemonName() {
     return daemon.getName();
   }
 
-  /** Is the empty period longer than the grace period? */  
+  /** Is the empty period longer than the grace period? */
   private synchronized boolean isRenewerExpired() {
     return emptyTime != Long.MAX_VALUE
         && Time.monotonicNow() - emptyTime > gracePeriod;
@@ -311,7 +311,7 @@ class LeaseRenewer {
               }
             }
           }
-          
+
           @Override
           public String toString() {
             return String.valueOf(LeaseRenewer.this);
@@ -388,7 +388,7 @@ class LeaseRenewer {
         daemonCopy = daemon;
       }
     }
-   
+
     if (daemonCopy != null) {
       if(LOG.isDebugEnabled()) {
         LOG.debug("Wait for lease checker to terminate");
@@ -437,8 +437,10 @@ class LeaseRenewer {
     for(long lastRenewed = Time.monotonicNow(); !Thread.interrupted();
         Thread.sleep(getSleepPeriod())) {
       final long elapsed = Time.monotonicNow() - lastRenewed;
+      // vortual: 30 秒刷新一次契约
       if (elapsed >= getRenewalTime()) {
         try {
+          // vortual: 续契约
           renew();
           if (LOG.isDebugEnabled()) {
             LOG.debug("Lease renewer daemon for " + clientsString()

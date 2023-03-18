@@ -692,6 +692,7 @@ class BPServiceActor implements Runnable {
         //
         // Every so often, send heartbeat or block-report
         //
+        // vortual: 隔多久心跳一次
         if (startTime - lastHeartbeat >= dnConf.heartBeatInterval) {
           //
           // All heartbeat messages include following info:
@@ -702,6 +703,7 @@ class BPServiceActor implements Runnable {
           //
           lastHeartbeat = startTime;
           if (!dn.areHeartbeatsDisabledForTests()) {
+            // vortual: resp 是 NN 返回的结果，可能会包含一些需要 DN 操作的事情。 NN 不直接操作 DN，通过心跳方式来让 DN 做相应的操作
             HeartbeatResponse resp = sendHeartBeat();
             assert resp != null;
             dn.getMetrics().addHeartbeat(monotonicNow() - startTime);
@@ -721,6 +723,7 @@ class BPServiceActor implements Runnable {
             }
 
             long startProcessCommands = monotonicNow();
+            // vortual: 执行 NN 返回的执行指令
             if (!processCommand(resp.getCommands()))
               continue;
             long endProcessCommands = monotonicNow();
