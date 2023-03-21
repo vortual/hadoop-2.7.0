@@ -2582,6 +2582,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       setNewINodeStoragePolicy(newNode, iip, isLazyPersist);
 
       // record file record in log, record new generation stamp
+      // vortual: 记录到 editlog
       getEditLog().logOpenFile(src, newNode, overwrite, logRetryEntry);
       if (NameNode.stateChangeLog.isDebugEnabled()) {
         NameNode.stateChangeLog.debug("DIR* NameSystem.startFile: added " +

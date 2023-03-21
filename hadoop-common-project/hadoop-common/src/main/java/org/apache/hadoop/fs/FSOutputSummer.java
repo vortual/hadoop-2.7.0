@@ -161,6 +161,7 @@ abstract public class FSOutputSummer extends OutputStream {
     int partialLen = bufLen % sum.getBytesPerChecksum();
     int lenToFlush = flushPartial ? bufLen : bufLen - partialLen;
     if (lenToFlush != 0) {
+      // vortual: HDFS 文件 -> Block(128M) -> packet(64k) = 127个chunk -> chunk (512byte + 4byte的chunksum) = 516byte
       writeChecksumChunks(buf, 0, lenToFlush);
       if (!flushPartial || keep) {
         count = partialLen;
@@ -200,10 +201,13 @@ abstract public class FSOutputSummer extends OutputStream {
    */
   private void writeChecksumChunks(byte b[], int off, int len)
   throws IOException {
+    // vortual: 计算出 chunk 的校验和
     sum.calculateChunkedSums(b, off, len, checksum, 0);
+    // vortual: 按照 chunk 遍历数据
     for (int i = 0; i < len; i += sum.getBytesPerChecksum()) {
       int chunkLen = Math.min(sum.getBytesPerChecksum(), len - i);
       int ckOffset = i / sum.getBytesPerChecksum() * getChecksumSize();
+      // vortual: 一个一个 chunk 写数据
       writeChunk(b, off + i, chunkLen, checksum, ckOffset, getChecksumSize());
     }
   }

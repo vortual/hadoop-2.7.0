@@ -138,6 +138,7 @@ class AsyncLoggerSet {
           "quorum of nodes to respond.");
     }
 
+    // vortual: 是否超过一半的 JR 成功了
     if (q.countSuccesses() < majority) {
       q.rethrowException("Got too many exceptions to achieve quorum size " +
           getMajorityString());

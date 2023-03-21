@@ -399,6 +399,7 @@ public class DFSOutputStream extends FSOutputSummer
           // process datanode IO errors if any
           boolean doSleep = false;
           if (hasError && (errorIndex >= 0 || restartingNodeIndex.get() >= 0)) {
+            // vortual: 处理发送异常的情况，容错在这里
             doSleep = processDatanodeError();
           }
 
@@ -446,7 +447,7 @@ public class DFSOutputStream extends FSOutputSummer
             if(DFSClient.LOG.isDebugEnabled()) {
               DFSClient.LOG.debug("Allocating new block");
             }
-            // vortual: 设置传输的 pipeline
+            // vortual: 向 NN 申请 block。设置传输的 pipeline
             setPipeline(nextBlockOutputStream());
             // vortual: 启动处理响应 ack 的线程
             initDataStreaming();
@@ -510,6 +511,7 @@ public class DFSOutputStream extends FSOutputSummer
           // write out data to remote datanode
           TraceScope writeScope = Trace.startSpan("writeTo", span);
           try {
+            // vortual: 写到 DN
             one.writeTo(blockStream);
             blockStream.flush();
           } catch (IOException e) {
@@ -736,6 +738,7 @@ public class DFSOutputStream extends FSOutputSummer
           try {
             // read an ack from the pipeline
             long begin = Time.monotonicNow();
+            // vortual: 获取写数据的结果
             ack.readFields(blockReplyStream);
             long duration = Time.monotonicNow() - begin;
             if (duration > dfsclientSlowLogThresholdMs
@@ -750,6 +753,7 @@ public class DFSOutputStream extends FSOutputSummer
 
             long seqno = ack.getSeqno();
             // processes response status from datanodes.
+            // vortual: 获取下游每个 DN 的响应
             for (int i = ack.getNumOfReplies()-1; i >=0  && dfsClient.clientRunning; i--) {
               final Status reply = PipelineAck.getStatusFromHeader(ack
                 .getHeaderFlag(i));
@@ -808,6 +812,7 @@ public class DFSOutputStream extends FSOutputSummer
               scope = Trace.continueSpan(one.getTraceSpan());
               one.setTraceSpan(null);
               lastAckedSeqno = seqno;
+              // vortual: 如果写成功就从 ackQueue 移除 packet
               ackQueue.removeFirst();
               dataQueue.notifyAll();
 
@@ -847,6 +852,7 @@ public class DFSOutputStream extends FSOutputSummer
     // threads and mark stream as closed. Returns true if we should
     // sleep for a while after returning from this call.
     //
+    // vortual: 处理写数据异常
     private boolean processDatanodeError() throws IOException {
       if (response != null) {
         DFSClient.LOG.info("Error Recovery for " + block +
@@ -857,6 +863,7 @@ public class DFSOutputStream extends FSOutputSummer
 
       // move packets from ack queue to front of the data queue
       synchronized (dataQueue) {
+        // vortual: 把 ackQueue 的 packet 放回 dataQueue
         dataQueue.addAll(0, ackQueue);
         ackQueue.clear();
       }
@@ -878,6 +885,8 @@ public class DFSOutputStream extends FSOutputSummer
           return false;
         }
       }
+
+      // vortual: 重新建立管道
       boolean doSleep = setupPipelineForAppendOrRecovery();
 
       if (!streamerClosed && dfsClient.clientRunning) {
@@ -1094,9 +1103,11 @@ public class DFSOutputStream extends FSOutputSummer
           DFSClient.LOG.warn("Error Recovery for block " + block +
               " in pipeline " + pipelineMsg +
               ": bad datanode " + nodes[errorIndex]);
+          // vortual: 出问题的 DN
           failed.add(nodes[errorIndex]);
 
           DatanodeInfo[] newnodes = new DatanodeInfo[nodes.length-1];
+          // vortual: 跳过有问题的 DN
           arraycopy(nodes, newnodes, errorIndex);
 
           final StorageType[] newStorageTypes = new StorageType[newnodes.length];
@@ -1130,9 +1141,11 @@ public class DFSOutputStream extends FSOutputSummer
         }
 
         // Check if replace-datanode policy is satisfied.
+        // vortual: 如果一半以上的 DN 都出问题了，就要重新建立管道了
         if (dfsClient.dtpReplaceDatanodeOnFailure.satisfy(blockReplication,
             nodes, isAppend, isHflushed)) {
           try {
+            // vortual: 重新申请 DN 构建管道
             addDatanode2ExistingPipeline();
           } catch(IOException ioe) {
             if (!dfsClient.dtpReplaceDatanodeOnFailure.isBestEffort()) {
@@ -1152,6 +1165,7 @@ public class DFSOutputStream extends FSOutputSummer
 
         // set up the pipeline again with the remaining nodes
         if (failPacket) { // for testing
+          // vortual: 利用好的 DN 再次建立管道发送数据
           success = createBlockOutputStream(nodes, storageTypes, newGS, isRecovery);
           failPacket = false;
           try {
@@ -1228,7 +1242,7 @@ public class DFSOutputStream extends FSOutputSummer
             .keySet()
             .toArray(new DatanodeInfo[0]);
         block = oldBlock;
-        // vortual: 添加一个 block。block 带有三个 DN 的地址
+        // vortual: 添加一个 block，往 NN 元数据新增内容，其实就是往 INode 下面增加一个 block。返回的block 带有三个 DN 的地址
         lb = locateFollowingBlock(excluded.length > 0 ? excluded : null);
         block = lb.getBlock();
         block.setNumBytes(0);
@@ -1241,17 +1255,20 @@ public class DFSOutputStream extends FSOutputSummer
         //
         // Connect to first DataNode in the list.
         //
-        // vortual: 创建第一个 DN
+        // vortual: 管道建立
         success = createBlockOutputStream(nodes, storageTypes, 0L, false);
 
         if (!success) {
+          // vortual: 如果管道建立失败，则不给写这个 block，放弃这个 block
           DFSClient.LOG.info("Abandoning " + block);
           dfsClient.namenode.abandonBlock(block, fileId, src,
               dfsClient.clientName);
           block = null;
           DFSClient.LOG.info("Excluding datanode " + nodes[errorIndex]);
+          // vortual: 出问题的 DN 记录下来，下次申请不要了
           excludedNodes.put(nodes[errorIndex], nodes[errorIndex]);
         }
+        // vortual: 建管道失败了还可以重试
       } while (!success && --count >= 0);
 
       if (!success) {
@@ -1628,7 +1645,7 @@ public class DFSOutputStream extends FSOutputSummer
       while (shouldRetry) {
         shouldRetry = false;
         try {
-          // vortual: 核心代码
+          // vortual: 核心代码。创建文件同时添加契约
           stat = dfsClient.namenode.create(src, masked, dfsClient.clientName,
               new EnumSetWritable<CreateFlag>(flag), createParent, replication,
               blockSize, SUPPORTED_CRYPTO_VERSIONS);
@@ -1782,6 +1799,7 @@ public class DFSOutputStream extends FSOutputSummer
           }
         }
         checkClosed();
+        // vortual: packet 放到 dataQueue
         queueCurrentPacket();
       } catch (ClosedChannelException e) {
       }
@@ -1829,13 +1847,18 @@ public class DFSOutputStream extends FSOutputSummer
       }
     }
 
+    // vortual: 往 packet 里面写 chunk 的校验和
     currentPacket.writeChecksum(checksum, ckoff, cklen);
+    // vortual: 往 packet 写一个 chunk
     currentPacket.writeData(b, offset, len);
+    // vortual: 累计算这个 packet 有多少个 chunk 了
     currentPacket.incNumChunks();
+    // vortual: block 大小
     bytesCurBlock += len;
 
     // If packet is full, enqueue it for transmission
     //
+    // vortual: 两个条件：1、packet 写满了 chunk。 2、block 达到 128M
     if (currentPacket.getNumChunks() == currentPacket.getMaxChunks() ||
         bytesCurBlock == blockSize) {
       if (DFSClient.LOG.isDebugEnabled()) {

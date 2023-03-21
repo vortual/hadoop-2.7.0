@@ -104,7 +104,7 @@ class QuorumOutputStream extends EditLogOutputStream {
       QuorumCall<AsyncLogger, Void> qcall = loggers.sendEdits(
           segmentTxId, firstTxToFlush,
           numReadyTxns, data);
-      // vortual: 异步等待发送到 journal 的结果
+      // vortual: 异步等待发送到 journal 的结果. 这里同时会判断是否超过一半的 JR 成功了，没有就报错
       loggers.waitForWriteQuorum(qcall, writeTimeoutMs, "sendEdits");
 
       // Since we successfully wrote this batch, let the loggers know. Any future

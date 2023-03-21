@@ -414,6 +414,11 @@ public class DistributedFileSystem extends FileSystem {
       @Override
       public HdfsDataOutputStream doCall(final Path p)
           throws IOException, UnresolvedLinkException {
+        /**
+         * vortual: 往文件目录树里面添加 INodeFile
+         * 契约管理
+         * 启动 DataStreamer
+         */
         final DFSOutputStream out = dfs.create(getPathName(f), permission,
             overwrite ? EnumSet.of(CreateFlag.CREATE, CreateFlag.OVERWRITE)
                 : EnumSet.of(CreateFlag.CREATE),

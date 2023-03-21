@@ -1700,6 +1700,11 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     if(LOG.isDebugEnabled()) {
       LOG.debug(src + ": masked=" + masked);
     }
+    /**
+     * vortual: 往文件目录树里面添加 INodeFile
+     * 契约管理
+     * 启动 DataStreamer
+     */
     final DFSOutputStream result = DFSOutputStream.newStreamForCreate(this,
         src, masked, flag, createParent, replication, blockSize, progress,
         buffersize, dfsClientConf.createChecksum(checksumOpt),

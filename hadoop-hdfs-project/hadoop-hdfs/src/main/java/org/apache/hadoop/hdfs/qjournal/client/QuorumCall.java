@@ -47,7 +47,7 @@ class QuorumCall<KEY, RESULT> {
    * while waiting for a quorum call.
    */
   private static final int WAIT_PROGRESS_INTERVAL_MILLIS = 1000;
-  
+
   /**
    * Start logging messages at INFO level periodically after waiting for
    * this fraction of the configured timeout for any call.
@@ -58,7 +58,7 @@ class QuorumCall<KEY, RESULT> {
    * fraction of the configured timeout for any call.
    */
   private static final float WAIT_PROGRESS_WARN_THRESHOLD = 0.7f;
-  
+
   static <KEY, RESULT> QuorumCall<KEY, RESULT> create(
       Map<KEY, ? extends ListenableFuture<RESULT>> calls) {
     final QuorumCall<KEY, RESULT> qr = new QuorumCall<KEY, RESULT>();
@@ -79,14 +79,14 @@ class QuorumCall<KEY, RESULT> {
     }
     return qr;
   }
-  
+
   private QuorumCall() {
     // Only instantiated from factory method above
   }
-  
+
   /**
    * Wait for the quorum to achieve a certain number of responses.
-   * 
+   *
    * Note that, even after this returns, more responses may arrive,
    * causing the return value of other methods in this class to change.
    *
@@ -115,7 +115,7 @@ class QuorumCall<KEY, RESULT> {
       if (minSuccesses > 0 && countSuccesses() >= minSuccesses) return;
       if (maxExceptions >= 0 && countExceptions() > maxExceptions) return;
       long now = Time.monotonicNow();
-      
+
       if (now > nextLogTime) {
         long waited = now - st;
         String msg = String.format(
@@ -143,6 +143,8 @@ class QuorumCall<KEY, RESULT> {
       }
       rem = Math.min(rem, nextLogTime - now);
       rem = Math.max(rem, 1);
+      // vortual: 唤醒代码位置：org.apache.hadoop.hdfs.qjournal.client.QuorumCall.addResult
+      // vortual: 创建 future 时注册了成功要做的操作，如果成功会回调 org.apache.hadoop.hdfs.qjournal.client.QuorumCall.addResult
       wait(rem);
     }
   }
@@ -152,7 +154,7 @@ class QuorumCall<KEY, RESULT> {
    * If so, it re-throws it, even if there was a quorum of responses.
    * This code only runs if assertions are enabled for this class,
    * otherwise it should JIT itself away.
-   * 
+   *
    * This is done since AssertionError indicates programmer confusion
    * rather than some kind of expected issue, and thus in the context
    * of test cases we'd like to actually fail the test case instead of
@@ -178,12 +180,12 @@ class QuorumCall<KEY, RESULT> {
     successes.put(k, res);
     notifyAll();
   }
-  
+
   private synchronized void addException(KEY k, Throwable t) {
     exceptions.put(k, t);
     notifyAll();
   }
-  
+
   /**
    * @return the total number of calls for which a response has been received,
    * regardless of whether it threw an exception or returned a successful
@@ -192,7 +194,7 @@ class QuorumCall<KEY, RESULT> {
   public synchronized int countResponses() {
     return successes.size() + exceptions.size();
   }
-  
+
   /**
    * @return the number of calls for which a non-exception response has been
    * received.
@@ -200,7 +202,7 @@ class QuorumCall<KEY, RESULT> {
   public synchronized int countSuccesses() {
     return successes.size();
   }
-  
+
   /**
    * @return the number of calls for which an exception response has been
    * received.

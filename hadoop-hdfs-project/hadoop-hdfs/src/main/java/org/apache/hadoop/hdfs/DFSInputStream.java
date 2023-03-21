@@ -896,6 +896,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
         } finally {
           // Check if need to report block replicas corruption either read
           // was successful or ChecksumException occured.
+          // vortual: 向 NN 汇报 checksum 失败的块
           reportCheckSumFailure(corruptedBlockMap,
               currentLocatedBlock.getLocations().length);
         }
