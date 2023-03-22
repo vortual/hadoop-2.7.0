@@ -2316,6 +2316,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
 
     HdfsFileStatus status = null;
     try {
+      // vortual: 核心代码
       status = startFileInt(src, permissions, holder, clientMachine, flag,
           createParent, replication, blockSize, supportedVersions,
           logRetryCache);
@@ -2561,6 +2562,7 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
       Map.Entry<INodesInPath, String> parent = FSDirMkdirOp
           .createAncestorDirectories(dir, iip, permissions);
       if (parent != null) {
+        // vortual: 往内存目录树添加 INodeFile
         iip = dir.addFile(parent.getKey(), parent.getValue(), permissions,
             replication, blockSize, holder, clientMachine);
         newNode = iip != null ? iip.getLastINode().asFile() : null;

@@ -769,6 +769,7 @@ public class FSEditLog implements LogsPurgeable {
     }
 
     logRpcIds(op, toLogRpcIds);
+    // vortual: 核心代码
     logEdit(op);
   }
 

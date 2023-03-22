@@ -1498,8 +1498,8 @@ public class NameNode implements NameNodeStatusMXBean {
         return null;
       }
       default: {
-        // vortual: 正常启动
         DefaultMetricsSystem.initialize("NameNode");
+        // vortual: 正常启动
         return new NameNode(conf);
       }
     }

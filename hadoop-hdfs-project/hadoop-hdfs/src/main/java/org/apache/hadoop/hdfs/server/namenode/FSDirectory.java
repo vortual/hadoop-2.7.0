@@ -415,6 +415,7 @@ public class FSDirectory implements Closeable {
     INodesInPath newiip;
     writeLock();
     try {
+      // vortual: 添加子节点
       newiip = addINode(existing, newNode);
     } finally {
       writeUnlock();

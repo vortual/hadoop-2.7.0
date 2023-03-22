@@ -589,7 +589,10 @@ class BlockReceiver implements Closeable {
       final boolean shouldNotWriteChecksum = checksumReceivedLen == 0
           && streams.isTransientStorage();
       try {
+        // vortual: 获取已经刷到磁盘的数据长度
         long onDiskLen = replicaInfo.getBytesOnDisk();
+        // vortual: 这里如果因为重试导致获取到相同的 packet，这个节点可能上个相同的 packet 已经成功写到磁盘了
+        // vortual: 但是它写成功的同时会更新 bytesOnDisk 值，那么 onDiskLen = offsetInBlock，这样就不会导致数据写重复
         if (onDiskLen<offsetInBlock) {
           //finally write to the disk :
 
@@ -659,6 +662,7 @@ class BlockReceiver implements Closeable {
           /// flush entire packet, sync if requested
           flushOrSync(syncBlock);
 
+          // vortual: 更新 bytesOnDisk 值。一开始是 0
           replicaInfo.setLastChecksumAndDataLen(offsetInBlock, lastCrc);
 
           datanode.metrics.incrBytesWritten(len);
@@ -1067,7 +1071,7 @@ class BlockReceiver implements Closeable {
       }
       synchronized(ackQueue) {
         if (running) {
-          // vortual: 把 packet 写到 ack queue。如果失败了还能从这里拿出来继续重试发送
+          // vortual: 把 packet 写到 ack queue
           ackQueue.addLast(p);
           ackQueue.notifyAll();
         }
