@@ -61,7 +61,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 public abstract class ZKFailoverController {
 
   static final Log LOG = LogFactory.getLog(ZKFailoverController.class);
-  
+
   public static final String ZK_QUORUM_KEY = "ha.zookeeper.quorum";
   private static final String ZK_SESSION_TIMEOUT_KEY = "ha.zookeeper.session-timeout.ms";
   private static final int ZK_SESSION_TIMEOUT_DEFAULT = 5*1000;
@@ -82,8 +82,8 @@ public abstract class ZKFailoverController {
     ZK_ACL_KEY,
     ZK_AUTH_KEY
   };
-  
-  protected static final String USAGE = 
+
+  protected static final String USAGE =
       "Usage: java zkfc [ -formatZK [-force] [-nonInteractive] ]";
 
   /** Unable to format the parent znode in ZK */
@@ -96,7 +96,7 @@ public abstract class ZKFailoverController {
   static final int ERR_CODE_AUTO_FAILOVER_NOT_ENABLED = 5;
   /** Cannot connect to ZooKeeper */
   static final int ERR_CODE_NO_ZK = 6;
-  
+
   protected Configuration conf;
   private String zkQuorum;
   protected final HAServiceTarget localTarget;
@@ -132,7 +132,7 @@ public abstract class ZKFailoverController {
     this.localTarget = localTarget;
     this.conf = conf;
   }
-  
+
 
   protected abstract byte[] targetToData(HAServiceTarget target);
   protected abstract HAServiceTarget dataToTarget(byte[] data);
@@ -183,7 +183,7 @@ public abstract class ZKFailoverController {
       throw (Exception)rte.getCause();
     }
   }
-  
+
 
   private int doRun(String[] args)
       throws HadoopIllegalArgumentException, IOException, InterruptedException {
@@ -238,7 +238,7 @@ public abstract class ZKFailoverController {
       mainLoop();
     } finally {
       rpcServer.stopAndJoin();
-      
+
       elector.quitElection(true);
       healthMonitor.shutdown();
       healthMonitor.join();
@@ -262,7 +262,7 @@ public abstract class ZKFailoverController {
       if (!force && (!interactive || !confirmFormat())) {
         return ERR_CODE_FORMAT_DENIED;
       }
-      
+
       try {
         elector.clearParentZNode();
       } catch (IOException e) {
@@ -270,7 +270,7 @@ public abstract class ZKFailoverController {
         return 1;
       }
     }
-    
+
     elector.ensureParentZNode();
     return 0;
   }
@@ -296,14 +296,14 @@ public abstract class ZKFailoverController {
   // ------------------------------------------
   // Begin actual guts of failover controller
   // ------------------------------------------
-  
+
   private void initHM() {
     healthMonitor = new HealthMonitor(conf, localTarget);
     healthMonitor.addCallback(new HealthCallbacks());
     healthMonitor.addServiceStateCallback(new ServiceStateCallBacks());
     healthMonitor.start();
   }
-  
+
   protected void initRPC() throws IOException {
     InetSocketAddress bindAddr = getRpcAddressToBindTo();
     rpcServer = new ZKFCRpcServer(conf, bindAddr, this, getPolicyProvider());
@@ -326,7 +326,7 @@ public abstract class ZKFailoverController {
     if (zkAcls.isEmpty()) {
       zkAcls = Ids.CREATOR_ALL_ACL;
     }
-    
+
     // Parse authentication from configuration.
     String zkAuthConf = conf.get(ZK_AUTH_KEY);
     zkAuthConf = ZKUtil.resolveConfIndirection(zkAuthConf);
@@ -343,7 +343,7 @@ public abstract class ZKFailoverController {
         ZK_QUORUM_KEY);
     Preconditions.checkArgument(zkTimeout > 0,
         "Invalid ZK session timeout %s", zkTimeout);
-    
+
     int maxRetryNum = conf.getInt(
         CommonConfigurationKeys.HA_FC_ELECTOR_ZK_OP_RETRIES_KEY,
         CommonConfigurationKeys.HA_FC_ELECTOR_ZK_OP_RETRIES_DEFAULT);
@@ -351,7 +351,7 @@ public abstract class ZKFailoverController {
         zkTimeout, getParentZnode(), zkAcls, zkAuths,
         new ElectorCallbacks(), maxRetryNum);
   }
-  
+
   private String getParentZnode() {
     String znode = conf.get(ZK_PARENT_ZNODE_KEY,
         ZK_PARENT_ZNODE_DEFAULT);
@@ -369,13 +369,13 @@ public abstract class ZKFailoverController {
     throw new RuntimeException(
         "ZK Failover Controller failed: " + fatalError);
   }
-  
+
   private synchronized void fatalError(String err) {
     LOG.fatal("Fatal error occurred:" + err);
     fatalError = err;
     notifyAll();
   }
-  
+
   private synchronized void becomeActive() throws ServiceFailedException {
     LOG.info("Trying to make " + localTarget + " active...");
     try {
@@ -391,7 +391,7 @@ public abstract class ZKFailoverController {
     } catch (Throwable t) {
       String msg = "Couldn't make " + localTarget + " active";
       LOG.fatal(msg, t);
-      
+
       recordActiveAttempt(new ActiveAttemptRecord(false, msg + "\n" +
           StringUtils.stringifyException(t)));
 
@@ -409,7 +409,7 @@ public abstract class ZKFailoverController {
 * ID, and when we start becoming active, we record it, and then any future
 * calls use the same ID
 */
-      
+
     }
   }
 
@@ -435,10 +435,10 @@ public abstract class ZKFailoverController {
    * <li>The node enters bad health status</li>
    * <li>The specified timeout elapses</li>
    * </ul>
-   * 
+   *
    * @param timeoutMillis number of millis to wait
    * @return the published record, or null if the timeout elapses or the
-   * service becomes unhealthy 
+   * service becomes unhealthy
    * @throws InterruptedException if the thread is interrupted.
    */
   private ActiveAttemptRecord waitForActiveAttempt(int timeoutMillis)
@@ -446,7 +446,7 @@ public abstract class ZKFailoverController {
     long st = System.nanoTime();
     long waitUntil = st + TimeUnit.NANOSECONDS.convert(
         timeoutMillis, TimeUnit.MILLISECONDS);
-    
+
     do {
       // periodically check health state, because entering an
       // unhealthy state could prevent us from ever attempting to
@@ -469,7 +469,7 @@ public abstract class ZKFailoverController {
         activeAttemptRecordLock.wait(1000);
       }
     } while (System.nanoTime() < waitUntil);
-    
+
     // Timeout elapsed.
     LOG.warn(timeoutMillis + "ms timeout elapsed waiting for an attempt " +
         "to become active");
@@ -496,11 +496,11 @@ public abstract class ZKFailoverController {
     }
     serviceState = HAServiceState.STANDBY;
   }
-  
+
 
   private synchronized void fenceOldActive(byte[] data) {
     HAServiceTarget target = dataToTarget(data);
-    
+
     try {
       doFence(target);
     } catch (Throwable t) {
@@ -508,9 +508,10 @@ public abstract class ZKFailoverController {
       Throwables.propagate(t);
     }
   }
-  
+
   private void doFence(HAServiceTarget target) {
     LOG.info("Should fence: " + target);
+    // vortual: 先尝试能不能远程 RPC 调用  transitionToStandby 方法把原先 active 的 NN 转为 standby
     boolean gracefulWorked = new FailoverController(conf,
         RequestSource.REQUEST_BY_ZKFC).tryGracefulFence(target);
     if (gracefulWorked) {
@@ -520,7 +521,7 @@ public abstract class ZKFailoverController {
           "state without fencing");
       return;
     }
-    
+
     try {
       target.checkFencingConfigured();
     } catch (BadFencingConfigurationException e) {
@@ -528,7 +529,7 @@ public abstract class ZKFailoverController {
       recordActiveAttempt(new ActiveAttemptRecord(false, "Unable to fence old active"));
       throw new RuntimeException(e);
     }
-    
+    // vortual: 远程 RPC 调用就通过 SSH 登录到目标机器上，执行命令 fuser 将对应的进程杀死； 或者执行一个用户自定义的 shell 脚本来将对应的进程隔离。
     if (!target.getFencer().fence(target)) {
       throw new RuntimeException("Unable to fence " + target);
     }
@@ -555,8 +556,8 @@ public abstract class ZKFailoverController {
       throw new IOException(e);
     }
   }
-  
-  private void doCedeActive(int millisToCede) 
+
+  private void doCedeActive(int millisToCede)
       throws AccessControlException, ServiceFailedException, IOException {
     int timeout = FailoverController.getGracefulFenceTimeout(conf);
 
@@ -568,7 +569,7 @@ public abstract class ZKFailoverController {
           recheckElectability();
           return;
         }
-  
+
         LOG.info("Requested by " + UserGroupInformation.getCurrentUser() +
             " at " + Server.getRemoteAddress() + " to cede active role.");
         boolean needFence = false;
@@ -590,7 +591,7 @@ public abstract class ZKFailoverController {
     }
     recheckElectability();
   }
-  
+
   /**
    * Coordinate a graceful failover to this node.
    * @throws ServiceFailedException if the node fails to become active
@@ -604,7 +605,7 @@ public abstract class ZKFailoverController {
           doGracefulFailover();
           return null;
         }
-        
+
       });
     } catch (InterruptedException e) {
       throw new IOException(e);
@@ -627,10 +628,10 @@ public abstract class ZKFailoverController {
   private void doGracefulFailover()
       throws ServiceFailedException, IOException, InterruptedException {
     int timeout = FailoverController.getGracefulFenceTimeout(conf) * 2;
-    
+
     // Phase 1: pre-flight checks
     checkEligibleForFailover();
-    
+
     // Phase 2: determine old/current active node. Check that we're not
     // ourselves active, etc.
     HAServiceTarget oldActive = getCurrentActive();
@@ -641,13 +642,13 @@ public abstract class ZKFailoverController {
       throw new ServiceFailedException(
           "No other node is currently active.");
     }
-    
+
     if (oldActive.getAddress().equals(localTarget.getAddress())) {
       LOG.info("Local node " + localTarget + " is already active. " +
           "No need to failover. Returning success.");
       return;
     }
-    
+
     // Phase 3: ask the old active to yield from the election.
     LOG.info("Asking " + oldActive + " to cede its active state for " +
         timeout + "ms");
@@ -657,16 +658,16 @@ public abstract class ZKFailoverController {
     // Phase 4: wait for the normal election to make the local node
     // active.
     ActiveAttemptRecord attempt = waitForActiveAttempt(timeout + 60000);
-    
+
     if (attempt == null) {
       // We didn't even make an attempt to become active.
       synchronized(this) {
         if (lastHealthState != State.SERVICE_HEALTHY) {
           throw new ServiceFailedException("Unable to become active. " +
-            "Service became unhealthy while trying to failover.");          
+            "Service became unhealthy while trying to failover.");
         }
       }
-      
+
       throw new ServiceFailedException("Unable to become active. " +
           "Local node did not get an opportunity to do so from ZooKeeper, " +
           "or the local node took too long to transition to active.");
@@ -676,7 +677,7 @@ public abstract class ZKFailoverController {
     // can tell the old active to rejoin if it wants. This allows a quick
     // fail-back if we immediately crash.
     oldZkfc.cedeActive(-1);
-    
+
     if (attempt.succeeded) {
       LOG.info("Successfully became active. " + attempt.status);
     } else {
@@ -705,7 +706,7 @@ public abstract class ZKFailoverController {
    * @return an {@link HAServiceTarget} for the current active node
    * in the cluster, or null if no node is active.
    * @throws IOException if a ZK-related issue occurs
-   * @throws InterruptedException if thread is interrupted 
+   * @throws InterruptedException if thread is interrupted
    */
   private HAServiceTarget getCurrentActive()
       throws IOException, InterruptedException {
@@ -720,7 +721,7 @@ public abstract class ZKFailoverController {
           throw new IOException(
               "Unexpected ZooKeeper issue fetching active node info", ke);
         }
-        
+
         HAServiceTarget oldActive = dataToTarget(activeData);
         return oldActive;
       }
@@ -736,8 +737,8 @@ public abstract class ZKFailoverController {
     synchronized (elector) {
       synchronized (this) {
         boolean healthy = lastHealthState == State.SERVICE_HEALTHY;
-    
-        long remainingDelay = delayJoiningUntilNanotime - System.nanoTime(); 
+
+        long remainingDelay = delayJoiningUntilNanotime - System.nanoTime();
         if (remainingDelay > 0) {
           if (healthy) {
             LOG.info("Would have joined master election, but this node is " +
@@ -747,7 +748,7 @@ public abstract class ZKFailoverController {
           scheduleRecheck(remainingDelay);
           return;
         }
-    
+
         switch (lastHealthState) {
         case SERVICE_HEALTHY:
           elector.joinElection(targetToData(localTarget));
@@ -755,14 +756,14 @@ public abstract class ZKFailoverController {
             quitElectionOnBadState = false;
           }
           break;
-          
+
         case INITIALIZING:
           LOG.info("Ensuring that " + localTarget + " does not " +
               "participate in active master election");
           elector.quitElection(false);
           serviceState = HAServiceState.INITIALIZING;
           break;
-    
+
         case SERVICE_UNHEALTHY:
         case SERVICE_NOT_RESPONDING:
           LOG.info("Quitting master election for " + localTarget +
@@ -770,18 +771,18 @@ public abstract class ZKFailoverController {
           elector.quitElection(true);
           serviceState = HAServiceState.INITIALIZING;
           break;
-          
+
         case HEALTH_MONITOR_FAILED:
           fatalError("Health monitor failed!");
           break;
-          
+
         default:
           throw new IllegalArgumentException("Unhandled state:" + lastHealthState);
         }
       }
     }
   }
-  
+
   /**
    * Schedule a call to {@link #recheckElectability()} in the future.
    */
@@ -853,12 +854,12 @@ public abstract class ZKFailoverController {
         " entered state: " + newState);
     lastHealthState = newState;
   }
-  
+
   @VisibleForTesting
   ActiveStandbyElector getElectorForTests() {
     return elector;
   }
-  
+
   @VisibleForTesting
   ZKFCRpcServer getRpcServerForTests() {
     return rpcServer;
@@ -891,7 +892,7 @@ public abstract class ZKFailoverController {
     public void fenceOldActive(byte[] data) {
       ZKFailoverController.this.fenceOldActive(data);
     }
-    
+
     @Override
     public String toString() {
       synchronized (ZKFailoverController.this) {
@@ -899,7 +900,7 @@ public abstract class ZKFailoverController {
       }
     }
   }
-  
+
   /**
    * Callbacks from HealthMonitor
    */
@@ -925,7 +926,7 @@ public abstract class ZKFailoverController {
     private final boolean succeeded;
     private final String status;
     private final long nanoTime;
-    
+
     public ActiveAttemptRecord(boolean succeeded, String status) {
       this.succeeded = succeeded;
       this.status = status;

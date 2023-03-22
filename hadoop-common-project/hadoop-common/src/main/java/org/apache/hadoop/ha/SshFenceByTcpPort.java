@@ -34,9 +34,9 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 /**
- * This fencing implementation sshes to the target node and uses 
+ * This fencing implementation sshes to the target node and uses
  * <code>fuser</code> to kill the process listening on the service's
- * TCP port. This is more accurate than using "jps" since it doesn't 
+ * TCP port. This is more accurate than using "jps" since it doesn't
  * require parsing, and will work even if there are multiple service
  * processes running on the same machine.<p>
  * It returns a successful status code if:
@@ -60,7 +60,7 @@ public class SshFenceByTcpPort extends Configured
 
   static final Log LOG = LogFactory.getLog(
       SshFenceByTcpPort.class);
-  
+
   static final String CONF_CONNECT_TIMEOUT_KEY =
     "dfs.ha.fencing.ssh.connect-timeout";
   private static final int CONF_CONNECT_TIMEOUT_DEFAULT =
@@ -85,7 +85,7 @@ public class SshFenceByTcpPort extends Configured
     Args args = new Args(argsStr);
     InetSocketAddress serviceAddr = target.getAddress();
     String host = serviceAddr.getHostName();
-    
+
     Session session;
     try {
       session = createSession(serviceAddr.getHostName(), args);
@@ -95,7 +95,7 @@ public class SshFenceByTcpPort extends Configured
     }
 
     LOG.info("Connecting to " + host + "...");
-    
+
     try {
       session.connect(getSshConnectTimeout());
     } catch (JSchException e) {
@@ -106,6 +106,7 @@ public class SshFenceByTcpPort extends Configured
     LOG.info("Connected to " + host);
 
     try {
+      // vortual: 核心代码
       return doFence(session, serviceAddr);
     } catch (JSchException e) {
       LOG.warn("Unable to achieve fencing on remote host", e);
@@ -155,10 +156,10 @@ public class SshFenceByTcpPort extends Configured
           return false;
         } else {
           LOG.info("Verified that the service is down.");
-          return true;          
+          return true;
         }
       } else {
-        // other 
+        // other
       }
       LOG.info("rc: " + rc);
       return rc == 0;
@@ -170,7 +171,7 @@ public class SshFenceByTcpPort extends Configured
       return false;
     }
   }
-  
+
   /**
    * Execute a command through the ssh session, pumping its
    * stderr and stdout to our own logs.
@@ -189,12 +190,12 @@ public class SshFenceByTcpPort extends Configured
       StreamPumper outPumper = new StreamPumper(LOG, cmd + " via ssh",
           exec.getInputStream(), StreamPumper.StreamType.STDOUT);
       outPumper.start();
-      
+
       // Pump stderr of the command to our WARN logs
       StreamPumper errPumper = new StreamPumper(LOG, cmd + " via ssh",
           exec.getErrStream(), StreamPumper.StreamType.STDERR);
       errPumper.start();
-      
+
       outPumper.join();
       errPumper.join();
       return exec.getExitStatus();
@@ -221,7 +222,7 @@ public class SshFenceByTcpPort extends Configured
   private Collection<String> getKeyFiles() {
     return getConf().getTrimmedStringCollection(CONF_IDENTITIES_KEY);
   }
-  
+
   /**
    * Container for the parsed arg line for this fencing method.
    */
@@ -234,8 +235,8 @@ public class SshFenceByTcpPort extends Configured
 
     String user;
     int sshPort;
-    
-    public Args(String arg) 
+
+    public Args(String arg)
         throws BadFencingConfigurationException {
       user = System.getProperty("user.name");
       sshPort = DEFAULT_SSH_PORT;
@@ -291,7 +292,7 @@ public class SshFenceByTcpPort extends Configured
         return false;
       }
     }
-      
+
     @Override
     public void log(int level, String message) {
       switch (level) {

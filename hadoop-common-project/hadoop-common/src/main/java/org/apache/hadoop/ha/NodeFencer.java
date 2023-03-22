@@ -36,7 +36,7 @@ import com.google.common.collect.Lists;
  * This class parses the configured list of fencing methods, and
  * is responsible for trying each one in turn while logging informative
  * output.<p>
- * 
+ *
  * The fencing methods are configured as a carriage-return separated list.
  * Each line in the list is of the form:<p>
  * <code>com.example.foo.MyMethod(arg string)</code>
@@ -70,14 +70,14 @@ public class NodeFencer {
     ImmutableMap.<String, Class<? extends FenceMethod>>of(
         "shell", ShellCommandFencer.class,
         "sshfence", SshFenceByTcpPort.class);
-  
+
   private final List<FenceMethodWithArg> methods;
-  
+
   NodeFencer(Configuration conf, String spec)
       throws BadFencingConfigurationException {
     this.methods = parseMethods(conf, spec);
   }
-  
+
   public static NodeFencer create(Configuration conf, String confKey)
       throws BadFencingConfigurationException {
     String confStr = conf.get(confKey);
@@ -92,8 +92,9 @@ public class NodeFencer {
     int i = 0;
     for (FenceMethodWithArg method : methods) {
       LOG.info("Trying method " + (++i) + "/" + methods.size() +": " + method);
-      
+
       try {
+        // vortual: 跳转到 org.apache.hadoop.ha.SshFenceByTcpPort.tryFence
         if (method.method.tryFence(fromSvc, method.arg)) {
           LOG.info("====== Fencing successful by method " + method + " ======");
           return true;
@@ -107,7 +108,7 @@ public class NodeFencer {
       }
       LOG.warn("Fencing method " + method + " was unsuccessful.");
     }
-    
+
     LOG.error("Unable to fence service by any configured method.");
     return false;
   }
@@ -116,7 +117,7 @@ public class NodeFencer {
       String spec)
       throws BadFencingConfigurationException {
     String[] lines = spec.split("\\s*\n\\s*");
-    
+
     List<FenceMethodWithArg> methods = Lists.newArrayList();
     for (String line : lines) {
       line = HASH_COMMENT_RE.matcher(line).replaceAll("");
@@ -125,7 +126,7 @@ public class NodeFencer {
         methods.add(parseMethod(conf, line));
       }
     }
-    
+
     return methods;
   }
 
@@ -162,28 +163,28 @@ public class NodeFencer {
           "Could not find configured fencing method " + clazzName,
           e);
     }
-    
+
     // Check that it implements the right interface
     if (!FenceMethod.class.isAssignableFrom(clazz)) {
       throw new BadFencingConfigurationException("Class " + clazzName +
           " does not implement FenceMethod");
     }
-    
+
     FenceMethod method = (FenceMethod)ReflectionUtils.newInstance(
         clazz, conf);
     method.checkArgs(arg);
     return new FenceMethodWithArg(method, arg);
   }
-  
+
   private static class FenceMethodWithArg {
     private final FenceMethod method;
     private final String arg;
-    
+
     private FenceMethodWithArg(FenceMethod method, String arg) {
       this.method = method;
       this.arg = arg;
     }
-    
+
     @Override
     public String toString() {
       return method.getClass().getCanonicalName() + "(" + arg + ")";
