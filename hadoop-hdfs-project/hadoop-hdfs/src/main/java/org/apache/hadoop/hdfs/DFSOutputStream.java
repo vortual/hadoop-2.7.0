@@ -753,7 +753,7 @@ public class DFSOutputStream extends FSOutputSummer
 
             long seqno = ack.getSeqno();
             // processes response status from datanodes.
-            // vortual: 获取下游每个 DN 的响应
+            // vortual: 遍历下游 DN 的响应
             for (int i = ack.getNumOfReplies()-1; i >=0  && dfsClient.clientRunning; i--) {
               final Status reply = PipelineAck.getStatusFromHeader(ack
                 .getHeaderFlag(i));

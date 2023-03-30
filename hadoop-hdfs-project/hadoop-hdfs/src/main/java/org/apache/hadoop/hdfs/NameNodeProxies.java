@@ -95,7 +95,7 @@ import com.google.common.base.Preconditions;
  * create either an HA- or non-HA-enabled client proxy as appropriate.
  */
 public class NameNodeProxies {
-  
+
   private static final Log LOG = LogFactory.getLog(NameNodeProxies.class);
 
   /**
@@ -108,18 +108,18 @@ public class NameNodeProxies {
     private final PROXYTYPE proxy;
     private final Text dtService;
     private final InetSocketAddress address;
-    
+
     public ProxyAndInfo(PROXYTYPE proxy, Text dtService,
         InetSocketAddress address) {
       this.proxy = proxy;
       this.dtService = dtService;
       this.address = address;
     }
-    
+
     public PROXYTYPE getProxy() {
       return proxy;
     }
-    
+
     public Text getDelegationTokenService() {
       return dtService;
     }
@@ -133,7 +133,7 @@ public class NameNodeProxies {
    * Creates the namenode proxy with the passed protocol. This will handle
    * creation of either HA- or non-HA-enabled proxy objects, depending upon
    * if the provided URI is a configured logical URI.
-   * 
+   *
    * @param conf the configuration containing the required IPC
    *        properties, client failover configurations, etc.
    * @param nameNodeUri the URI pointing either to a specific NameNode
@@ -169,10 +169,11 @@ public class NameNodeProxies {
   public static <T> ProxyAndInfo<T> createProxy(Configuration conf,
       URI nameNodeUri, Class<T> xface, AtomicBoolean fallbackToSimpleAuth)
       throws IOException {
+    // vortual: 连接 HA 。确定哪台是 active namenode
     AbstractNNFailoverProxyProvider<T> failoverProxyProvider =
         createFailoverProxyProvider(conf, nameNodeUri, xface, true,
           fallbackToSimpleAuth);
-  
+
     if (failoverProxyProvider == null) {
       // Non-HA case
       return createNonHAProxy(conf, NameNode.getAddress(nameNodeUri), xface,
@@ -198,14 +199,14 @@ public class NameNodeProxies {
           NameNode.getAddress(nameNodeUri));
     }
   }
-  
+
   /**
    * Generate a dummy namenode proxy instance that utilizes our hacked
    * {@link LossyRetryInvocationHandler}. Proxy instance generated using this
    * method will proactively drop RPC responses. Currently this method only
-   * support HA setup. null will be returned if the given configuration is not 
+   * support HA setup. null will be returned if the given configuration is not
    * for HA.
-   * 
+   *
    * @param config the configuration containing the required IPC
    *        properties, client failover configurations, etc.
    * @param nameNodeUri the URI pointing either to a specific NameNode
@@ -225,6 +226,7 @@ public class NameNodeProxies {
       int numResponseToDrop, AtomicBoolean fallbackToSimpleAuth)
       throws IOException {
     Preconditions.checkArgument(numResponseToDrop > 0);
+    // vortual: 判断哪个是 active namenode 的代码
     AbstractNNFailoverProxyProvider<T> failoverProxyProvider =
         createFailoverProxyProvider(config, nameNodeUri, xface, true,
           fallbackToSimpleAuth);
@@ -245,10 +247,10 @@ public class NameNodeProxies {
       InvocationHandler dummyHandler = new LossyRetryInvocationHandler<T>(
               numResponseToDrop, failoverProxyProvider,
               RetryPolicies.failoverOnNetworkException(
-                  RetryPolicies.TRY_ONCE_THEN_FAIL, maxFailoverAttempts, 
-                  Math.max(numResponseToDrop + 1, maxRetryAttempts), delay, 
+                  RetryPolicies.TRY_ONCE_THEN_FAIL, maxFailoverAttempts,
+                  Math.max(numResponseToDrop + 1, maxRetryAttempts), delay,
                   maxCap));
-      
+
       T proxy = (T) Proxy.newProxyInstance(
           failoverProxyProvider.getInterface().getClassLoader(),
           new Class[] { xface }, dummyHandler);
@@ -272,7 +274,7 @@ public class NameNodeProxies {
   /**
    * Creates an explicitly non-HA-enabled proxy object. Most of the time you
    * don't want to use this, and should instead use {@link NameNodeProxies#createProxy}.
-   * 
+   *
    * @param conf the configuration object
    * @param nnAddr address of the remote NN to connect to
    * @param xface the IPC interface which should be created
@@ -310,7 +312,7 @@ public class NameNodeProxies {
       UserGroupInformation ugi, boolean withRetries,
       AtomicBoolean fallbackToSimpleAuth) throws IOException {
     Text dtService = SecurityUtil.buildTokenService(nnAddr);
-  
+
     T proxy;
     if (xface == ClientProtocol.class) {
       proxy = (T) createNNProxyWithClientProtocol(nnAddr, conf, ugi,
@@ -339,7 +341,7 @@ public class NameNodeProxies {
 
     return new ProxyAndInfo<T>(proxy, dtService, nnAddr);
   }
-  
+
   private static JournalProtocol createNNProxyWithJournalProtocol(
       InetSocketAddress address, Configuration conf, UserGroupInformation ugi)
       throws IOException {
@@ -355,7 +357,7 @@ public class NameNodeProxies {
         createNameNodeProxy(address, conf, ugi, RefreshAuthorizationPolicyProtocolPB.class);
     return new RefreshAuthorizationPolicyProtocolClientSideTranslatorPB(proxy);
   }
-  
+
   private static RefreshUserMappingsProtocol
       createNNProxyWithRefreshUserMappingsProtocol(InetSocketAddress address,
           Configuration conf, UserGroupInformation ugi) throws IOException {
@@ -379,7 +381,7 @@ public class NameNodeProxies {
         createNameNodeProxy(address, conf, ugi, GetUserMappingsProtocolPB.class);
     return new GetUserMappingsProtocolClientSideTranslatorPB(proxy);
   }
-  
+
   private static NamenodeProtocol createNNProxyWithNamenodeProtocol(
       InetSocketAddress address, Configuration conf, UserGroupInformation ugi,
       boolean withRetries) throws IOException {
@@ -400,22 +402,22 @@ public class NameNodeProxies {
       return new NamenodeProtocolTranslatorPB(proxy);
     }
   }
-  
+
   private static ClientProtocol createNNProxyWithClientProtocol(
       InetSocketAddress address, Configuration conf, UserGroupInformation ugi,
       boolean withRetries, AtomicBoolean fallbackToSimpleAuth)
       throws IOException {
     RPC.setProtocolEngine(conf, ClientNamenodeProtocolPB.class, ProtobufRpcEngine.class);
 
-    final RetryPolicy defaultPolicy = 
+    final RetryPolicy defaultPolicy =
         RetryUtils.getDefaultRetryPolicy(
-            conf, 
-            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_ENABLED_KEY, 
-            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_ENABLED_DEFAULT, 
+            conf,
+            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_ENABLED_KEY,
+            DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_ENABLED_DEFAULT,
             DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_SPEC_KEY,
             DFSConfigKeys.DFS_CLIENT_RETRY_POLICY_SPEC_DEFAULT,
             SafeModeException.class);
-    
+
     final long version = RPC.getProtocolVersion(ClientNamenodeProtocolPB.class);
     ClientNamenodeProtocolPB proxy = RPC.getProtocolProxy(
         ClientNamenodeProtocolPB.class, version, address, ugi, conf,
@@ -428,17 +430,17 @@ public class NameNodeProxies {
       RetryPolicy createPolicy = RetryPolicies
           .retryUpToMaximumCountWithFixedSleep(5,
               HdfsConstants.LEASE_SOFTLIMIT_PERIOD, TimeUnit.MILLISECONDS);
-    
-      Map<Class<? extends Exception>, RetryPolicy> remoteExceptionToPolicyMap 
+
+      Map<Class<? extends Exception>, RetryPolicy> remoteExceptionToPolicyMap
                  = new HashMap<Class<? extends Exception>, RetryPolicy>();
       remoteExceptionToPolicyMap.put(AlreadyBeingCreatedException.class,
           createPolicy);
 
       RetryPolicy methodPolicy = RetryPolicies.retryByRemoteException(
           defaultPolicy, remoteExceptionToPolicyMap);
-      Map<String, RetryPolicy> methodNameToPolicyMap 
+      Map<String, RetryPolicy> methodNameToPolicyMap
                  = new HashMap<String, RetryPolicy>();
-    
+
       methodNameToPolicyMap.put("create", methodPolicy);
 
       ClientProtocol translatorProxy =
@@ -471,7 +473,7 @@ public class NameNodeProxies {
       return null;
     }
     String host = nameNodeUri.getHost();
-  
+
     String configKey = DFS_CLIENT_FAILOVER_PROXY_PROVIDER_KEY_PREFIX + "."
         + host;
     try {

@@ -48,16 +48,16 @@ import com.google.common.base.Preconditions;
  */
 public class ConfiguredFailoverProxyProvider<T> extends
     AbstractNNFailoverProxyProvider<T> {
-  
+
   private static final Log LOG =
       LogFactory.getLog(ConfiguredFailoverProxyProvider.class);
-  
+
   private final Configuration conf;
   private final List<AddressRpcProxyPair<T>> proxies =
       new ArrayList<AddressRpcProxyPair<T>>();
   private final UserGroupInformation ugi;
   private final Class<T> xface;
-  
+
   private int currentProxyIndex = 0;
 
   public ConfiguredFailoverProxyProvider(Configuration conf, URI uri,
@@ -66,7 +66,7 @@ public class ConfiguredFailoverProxyProvider<T> extends
         xface.isAssignableFrom(NamenodeProtocols.class),
         "Interface class %s is not a valid NameNode protocol!");
     this.xface = xface;
-    
+
     this.conf = new Configuration(conf);
     int maxRetries = this.conf.getInt(
         DFSConfigKeys.DFS_CLIENT_FAILOVER_CONNECTION_RETRIES_KEY,
@@ -74,26 +74,26 @@ public class ConfiguredFailoverProxyProvider<T> extends
     this.conf.setInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECT_MAX_RETRIES_KEY,
         maxRetries);
-    
+
     int maxRetriesOnSocketTimeouts = this.conf.getInt(
         DFSConfigKeys.DFS_CLIENT_FAILOVER_CONNECTION_RETRIES_ON_SOCKET_TIMEOUTS_KEY,
         DFSConfigKeys.DFS_CLIENT_FAILOVER_CONNECTION_RETRIES_ON_SOCKET_TIMEOUTS_DEFAULT);
     this.conf.setInt(
         CommonConfigurationKeysPublic.IPC_CLIENT_CONNECT_MAX_RETRIES_ON_SOCKET_TIMEOUTS_KEY,
         maxRetriesOnSocketTimeouts);
-    
+
     try {
       ugi = UserGroupInformation.getCurrentUser();
-      
+
       Map<String, Map<String, InetSocketAddress>> map = DFSUtil.getHaNnRpcAddresses(
           conf);
       Map<String, InetSocketAddress> addressesInNN = map.get(uri.getHost());
-      
+
       if (addressesInNN == null || addressesInNN.size() == 0) {
         throw new RuntimeException("Could not find any configured addresses " +
             "for URI " + uri);
       }
-      
+
       Collection<InetSocketAddress> addressesOfNns = addressesInNN.values();
       for (InetSocketAddress address : addressesOfNns) {
         proxies.add(new AddressRpcProxyPair<T>(address));
@@ -107,7 +107,7 @@ public class ConfiguredFailoverProxyProvider<T> extends
       throw new RuntimeException(e);
     }
   }
-    
+
   @Override
   public Class<T> getInterface() {
     return xface;
@@ -118,6 +118,7 @@ public class ConfiguredFailoverProxyProvider<T> extends
    */
   @Override
   public synchronized ProxyInfo<T> getProxy() {
+    //vortual: currentProxyIndex 代表 list 的当前索引，当发生 fail-over 时会加一。对应下面的 performFailover 方法
     AddressRpcProxyPair<T> current = proxies.get(currentProxyIndex);
     if (current.namenode == null) {
       try {
@@ -143,7 +144,7 @@ public class ConfiguredFailoverProxyProvider<T> extends
   private static class AddressRpcProxyPair<T> {
     public final InetSocketAddress address;
     public T namenode;
-    
+
     public AddressRpcProxyPair(InetSocketAddress address) {
       this.address = address;
     }

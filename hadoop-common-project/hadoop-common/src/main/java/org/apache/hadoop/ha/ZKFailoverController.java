@@ -169,6 +169,7 @@ public abstract class ZKFailoverController {
         @Override
         public Integer run() {
           try {
+            // vortual: 核心代码
             return doRun(args);
           } catch (Exception t) {
             throw new RuntimeException(t);
@@ -188,6 +189,7 @@ public abstract class ZKFailoverController {
   private int doRun(String[] args)
       throws HadoopIllegalArgumentException, IOException, InterruptedException {
     try {
+      // vortual: 初始化 ActiveStandbyElector
       initZK();
     } catch (KeeperException ke) {
       LOG.fatal("Unable to start failover controller. Unable to connect "
@@ -197,6 +199,7 @@ public abstract class ZKFailoverController {
       return ERR_CODE_NO_ZK;
     }
     if (args.length > 0) {
+      // vortual: 一开始需要初始化. 也就是在 zk 上创建对应 znode 节点
       if ("-formatZK".equals(args[0])) {
         boolean force = false;
         boolean interactive = true;
@@ -232,6 +235,7 @@ public abstract class ZKFailoverController {
     }
 
     initRPC();
+    // vortual: 健康检查. HealthMonitor主要用来检测 NameNode 的健康问题,包括服务状态,机器的磁盘资源
     initHM();
     startRPC();
     try {
@@ -299,7 +303,9 @@ public abstract class ZKFailoverController {
 
   private void initHM() {
     healthMonitor = new HealthMonitor(conf, localTarget);
+    // vortual: 注册回调,检测 NameNode 的服务状态,如果其服务正常且还没进行 leader 选举的话,执行一次选举过程
     healthMonitor.addCallback(new HealthCallbacks());
+    // vortual: 注册回调,当服务状态变更的时候,回调
     healthMonitor.addServiceStateCallback(new ServiceStateCallBacks());
     healthMonitor.start();
   }
@@ -751,6 +757,7 @@ public abstract class ZKFailoverController {
 
         switch (lastHealthState) {
         case SERVICE_HEALTHY:
+          // vortual: 主备选举
           elector.joinElection(targetToData(localTarget));
           if (quitElectionOnBadState) {
             quitElectionOnBadState = false;

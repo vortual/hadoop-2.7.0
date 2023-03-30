@@ -1115,10 +1115,12 @@ public class FSNamesystem implements Namesystem, FSNamesystemMBean,
         // During startup, we're already open for write during initialization.
         editLog.initJournalsForWrite();
         // May need to recover
+        // vortual: 发送主备切换，为了防止脑裂，需要用 epoch 来控制。这里代码涉及了 journal manager 新 epoch 的生成
         editLog.recoverUnclosedStreams();
 
         LOG.info("Catching up to latest edits from old active before " +
             "taking over writer role in edits logs");
+        // vortual: 发生主备切换的时候， 原先的 standby nn 的元数据可以落后于原先的 active nn，需要从 journal 补回来
         editLogTailer.catchupDuringFailover();
 
         blockManager.setPostponeBlocksFromFuture(false);

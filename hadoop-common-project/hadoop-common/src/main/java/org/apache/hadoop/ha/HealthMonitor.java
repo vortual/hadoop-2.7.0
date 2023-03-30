@@ -41,7 +41,7 @@ import com.google.common.base.Preconditions;
  * with an HA service. It is responsible for keeping track of that service's
  * health and exposing callbacks to the failover controller when the health
  * status changes.
- * 
+ *
  * Classes which need callbacks should implement the {@link Callback}
  * interface.
  */
@@ -66,7 +66,7 @@ public class HealthMonitor {
   private final HAServiceTarget targetToMonitor;
 
   private final Configuration conf;
-  
+
   private State state = State.INITIALIZING;
 
   /**
@@ -80,7 +80,7 @@ public class HealthMonitor {
 
   private HAServiceStatus lastServiceState = new HAServiceStatus(
       HAServiceState.INITIALIZING);
-  
+
   @InterfaceAudience.Private
   public enum State {
     /**
@@ -97,12 +97,12 @@ public class HealthMonitor {
      * The service is connected and healthy.
      */
     SERVICE_HEALTHY,
-    
+
     /**
      * The service is running but unhealthy.
      */
     SERVICE_UNHEALTHY,
-    
+
     /**
      * The health monitor itself failed unrecoverably and can
      * no longer provide accurate information.
@@ -114,7 +114,7 @@ public class HealthMonitor {
   HealthMonitor(Configuration conf, HAServiceTarget target) {
     this.targetToMonitor = target;
     this.conf = conf;
-    
+
     this.sleepAfterDisconnectMillis = conf.getLong(
         HA_HM_SLEEP_AFTER_DISCONNECT_KEY,
         HA_HM_SLEEP_AFTER_DISCONNECT_DEFAULT);
@@ -127,14 +127,14 @@ public class HealthMonitor {
     this.rpcTimeout = conf.getInt(
         HA_HM_RPC_TIMEOUT_KEY,
         HA_HM_RPC_TIMEOUT_DEFAULT);
-    
+
     this.daemon = new MonitorDaemon();
   }
-  
+
   public void addCallback(Callback cb) {
     this.callbacks.add(cb);
   }
-  
+
   public void removeCallback(Callback cb) {
     callbacks.remove(cb);
   }
@@ -162,7 +162,7 @@ public class HealthMonitor {
   public synchronized HAServiceProtocol getProxy() {
     return proxy;
   }
-  
+
   private void loopUntilConnected() throws InterruptedException {
     tryConnect();
     while (proxy == null) {
@@ -174,7 +174,7 @@ public class HealthMonitor {
 
   private void tryConnect() {
     Preconditions.checkState(proxy == null);
-    
+
     try {
       synchronized (this) {
         proxy = createProxy();
@@ -186,7 +186,7 @@ public class HealthMonitor {
       enterState(State.SERVICE_NOT_RESPONDING);
     }
   }
-  
+
   /**
    * Connect to the service to be monitored. Stubbed out for easier testing.
    */
@@ -199,7 +199,9 @@ public class HealthMonitor {
       HAServiceStatus status = null;
       boolean healthy = false;
       try {
+        // vortual: 获取 NN 状态
         status = proxy.getServiceStatus();
+        // vortual: 检测磁盘资源
         proxy.monitorHealth();
         healthy = true;
       } catch (Throwable t) {
@@ -217,11 +219,13 @@ public class HealthMonitor {
           return;
         }
       }
-      
+
       if (status != null) {
         setLastServiceStatus(status);
       }
       if (healthy) {
+        // vortual: state 一开始是 State.INITIALIZING.
+        // vortual: 所以这里会跟 State.SERVICE_HEALTHY 不一致，发生状态变更回调，触发主备选举
         enterState(State.SERVICE_HEALTHY);
       }
 
@@ -245,6 +249,7 @@ public class HealthMonitor {
   }
 
   private synchronized void enterState(State newState) {
+    // vortual: 状态不一致
     if (newState != state) {
       LOG.info("Entering state " + newState);
       state = newState;
@@ -259,11 +264,11 @@ public class HealthMonitor {
   synchronized State getHealthState() {
     return state;
   }
-  
+
   synchronized HAServiceStatus getLastServiceStatus() {
     return lastServiceState;
   }
-  
+
   boolean isAlive() {
     return daemon.isAlive();
   }
@@ -288,12 +293,14 @@ public class HealthMonitor {
         }
       });
     }
-    
+
     @Override
     public void run() {
       while (shouldRun) {
-        try { 
+        try {
+          // vortual: 连接上 NN，获取 RPC 代理
           loopUntilConnected();
+          // vortual: 健康检查
           doHealthChecks();
         } catch (InterruptedException ie) {
           Preconditions.checkState(!shouldRun,
@@ -302,15 +309,15 @@ public class HealthMonitor {
       }
     }
   }
-  
+
   /**
    * Callback interface for state change events.
-   * 
+   *
    * This interface is called from a single thread which also performs
    * the health monitoring. If the callback processing takes a long time,
    * no further health checks will be made during this period, nor will
    * other registered callbacks be called.
-   * 
+   *
    * If the callback itself throws an unchecked exception, no other
    * callbacks following it will be called, and the health monitor
    * will terminate, entering HEALTH_MONITOR_FAILED state.

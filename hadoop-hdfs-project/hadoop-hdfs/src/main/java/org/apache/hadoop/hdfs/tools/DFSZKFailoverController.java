@@ -70,13 +70,13 @@ public class DFSZKFailoverController extends ZKFailoverController {
         conf, proto.getNameserviceId(), proto.getNamenodeId());
     InetSocketAddress addressFromProtobuf = new InetSocketAddress(
         proto.getHostname(), proto.getPort());
-    
+
     if (!addressFromProtobuf.equals(ret.getAddress())) {
       throw new RuntimeException("Mismatched address stored in ZK for " +
           ret + ": Stored protobuf was " + proto + ", address from our own " +
           "configuration for this NameNode was " + ret.getAddress());
     }
-    
+
     ret.setZkfcPort(proto.getZkfcPort());
     return ret;
   }
@@ -94,25 +94,25 @@ public class DFSZKFailoverController extends ZKFailoverController {
       .build()
       .toByteArray();
   }
-  
+
   @Override
   protected InetSocketAddress getRpcAddressToBindTo() {
     int zkfcPort = getZkfcPort(conf);
     return new InetSocketAddress(localTarget.getAddress().getAddress(),
           zkfcPort);
   }
-  
+
 
   @Override
   protected PolicyProvider getPolicyProvider() {
     return new HDFSPolicyProvider();
   }
-  
+
   static int getZkfcPort(Configuration conf) {
     return conf.getInt(DFSConfigKeys.DFS_HA_ZKFC_PORT_KEY,
         DFSConfigKeys.DFS_HA_ZKFC_PORT_DEFAULT);
   }
-  
+
   public static DFSZKFailoverController create(Configuration conf) {
     Configuration localNNConf = DFSHAAdmin.addSecurityConfiguration(conf);
     String nsId = DFSUtil.getNamenodeNameServiceId(conf);
@@ -129,7 +129,7 @@ public class DFSZKFailoverController extends ZKFailoverController {
     }
     NameNode.initializeGenericKeys(localNNConf, nsId, nnId);
     DFSUtil.setGenericConf(localNNConf, nsId, nnId, ZKFC_CONF_KEYS);
-    
+
     NNHAServiceTarget localTarget = new NNHAServiceTarget(
         localNNConf, nsId, nnId);
     return new DFSZKFailoverController(localNNConf, localTarget);
@@ -145,8 +145,8 @@ public class DFSZKFailoverController extends ZKFailoverController {
     LOG.info("Failover controller configured for NameNode " +
         localTarget);
 }
-  
-  
+
+
   @Override
   protected void initRPC() throws IOException {
     super.initRPC();
@@ -159,7 +159,7 @@ public class DFSZKFailoverController extends ZKFailoverController {
     SecurityUtil.login(conf, DFS_NAMENODE_KEYTAB_FILE_KEY,
         DFS_NAMENODE_KERBEROS_PRINCIPAL_KEY, socAddr.getHostName());
   }
-  
+
   @Override
   protected String getScopeInsideParentNode() {
     return localNNTarget.getNameServiceId();
@@ -167,17 +167,18 @@ public class DFSZKFailoverController extends ZKFailoverController {
 
   public static void main(String args[])
       throws Exception {
-    if (DFSUtil.parseHelpArgument(args, 
+    if (DFSUtil.parseHelpArgument(args,
         ZKFailoverController.USAGE, System.out, true)) {
       System.exit(0);
     }
-    
+
     GenericOptionsParser parser = new GenericOptionsParser(
         new HdfsConfiguration(), args);
     DFSZKFailoverController zkfc = DFSZKFailoverController.create(
         parser.getConfiguration());
     int retCode = 0;
     try {
+      // vortual: 核心代码
       retCode = zkfc.run(parser.getRemainingArgs());
     } catch (Throwable t) {
       LOG.fatal("Got a fatal error, exiting now", t);
@@ -195,7 +196,7 @@ public class DFSZKFailoverController extends ZKFailoverController {
       return;
     }
     String msg = "Disallowed RPC access from " + ugi + " at " +
-        Server.getRemoteAddress() + ". Not listed in " + DFSConfigKeys.DFS_ADMIN; 
+        Server.getRemoteAddress() + ". Not listed in " + DFSConfigKeys.DFS_ADMIN;
     LOG.warn(msg);
     throw new AccessControlException(msg);
   }

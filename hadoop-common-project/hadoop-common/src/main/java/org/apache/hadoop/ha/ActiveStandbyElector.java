@@ -257,6 +257,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
     System.arraycopy(data, 0, appData, 0, data.length);
 
     LOG.debug("Attempting active election for " + this);
+    // vortual: 核心代码
     joinElectionInternal();
   }
 
@@ -355,8 +356,10 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
     if (!needFence && state == State.ACTIVE) {
       // If active is gracefully going back to standby mode, remove
       // our permanent znode so no one fences us.
+      // vortual: 删除持久化节点
       tryDeleteOwnBreadCrumbNode();
     }
+    // vortual: 断开 zk .临时节点同时被删除
     reset();
     wantToBeInElection = false;
   }
@@ -403,6 +406,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
    * interface implementation of Zookeeper callback for create
    */
   @Override
+  // vortual: 创建 zk 节点回调的地方
   public synchronized void processResult(int rc, String path, Object ctx,
       String name) {
     if (isStaleClient(ctx)) return;
@@ -414,6 +418,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
     if (isSuccess(code)) {
       // we successfully created the znode. we are the leader. start monitoring
       if (becomeActive()) {
+        // vortual: 监控临时节点
         monitorActiveStatus();
       } else {
         reJoinElectionAfterFailureToBecomeActive();
@@ -421,6 +426,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
       return;
     }
 
+    // vortual: 节点已经存在被别人创建了
     if (isNodeExists(code)) {
       if (createRetryCount == 0) {
         // znode exists and we did not retry the operation. so a different
@@ -591,6 +597,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
         if (state == State.ACTIVE) {
           enterNeutralMode();
         }
+        // vortual: 临时节点没了重新选举
         joinElectionInternal();
         break;
       case NodeDataChanged:
@@ -663,6 +670,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
 
     createRetryCount = 0;
     wantToBeInElection = true;
+    // vortual: 创建 zk 临时节点
     createLockNodeAsync();
   }
 
@@ -798,11 +806,13 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
       return true;
     }
     try {
-      // vortual: 处理脑裂问题
+      // vortual: 处理脑裂问题. 从 zk 获取旧的 active nn，并远程调用隔离它
       Stat oldBreadcrumbStat = fenceOldActive();
+      // vortual: 写入 breadcrumb 节点，以便下次主备切换时候新的主节点能从 zk 获取到旧的主节点信息然后远程调用隔离它
       writeBreadCrumbNode(oldBreadcrumbStat);
 
       LOG.debug("Becoming active for " + this);
+      // vortual: RPC 远程调用变成 active. org.apache.hadoop.ha.ZKFailoverController.ElectorCallbacks.becomeActive
       appClient.becomeActive();
       state = State.ACTIVE;
       return true;
@@ -884,6 +894,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
         }
       });
     } catch (KeeperException ke) {
+      // vortual: 没有旧 active 节点
       if (isNodeDoesNotExist(ke.code())) {
         LOG.info("No old node to fence");
         return null;
@@ -900,6 +911,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
     if (Arrays.equals(data, appData)) {
       LOG.info("But old node has our own data, so don't need to fence it.");
     } else {
+      // vortual: 隔离防止脑裂
       appClient.fenceOldActive(data);
     }
     return stat;
@@ -922,6 +934,7 @@ public class ActiveStandbyElector implements StatCallback, StringCallback {
   }
 
   private void createLockNodeAsync() {
+    // vortual: 创建结果会回调 org.apache.hadoop.ha.ActiveStandbyElector.processResult
     zkClient.create(zkLockFilePath, appData, zkAcl, CreateMode.EPHEMERAL,
         this, zkClient);
   }
